@@ -71,14 +71,18 @@ List<SmartOperator> operatorsFor(FieldType type) => switch (type) {
           SmartOperator.lessThan,
         ],
       FieldType.flag => const [SmartOperator.isTrue, SmartOperator.isFalse],
-      FieldType.date => const [SmartOperator.inLastDays, SmartOperator.notInLastDays],
+      FieldType.date => const [
+          SmartOperator.inLastDays,
+          SmartOperator.notInLastDays
+        ],
     };
 
 enum MergeRule { all, any }
 
 /// Evaluation environment: current time and which songs are downloaded.
 class SmartContext {
-  SmartContext({DateTime? now, this.isDownloaded}) : now = now ?? DateTime.now();
+  SmartContext({DateTime? now, this.isDownloaded})
+      : now = now ?? DateTime.now();
 
   final DateTime now;
   final bool Function(String songId)? isDownloaded;
@@ -205,7 +209,8 @@ class SmartGroup extends SmartNode {
       };
 
   factory SmartGroup.fromJson(Map<String, dynamic> j) => SmartGroup(
-        MergeRule.values.firstWhere((m) => m.name == j['merge'], orElse: () => MergeRule.all),
+        MergeRule.values.firstWhere((m) => m.name == j['merge'],
+            orElse: () => MergeRule.all),
         [
           for (final c in (j['children'] as List? ?? const []))
             SmartNode.fromJson(c as Map<String, dynamic>),
@@ -213,11 +218,13 @@ class SmartGroup extends SmartNode {
       );
 
   @override
-  bool matches(Song song, SmartContext ctx) => mergeMatches(merge, children, song, ctx);
+  bool matches(Song song, SmartContext ctx) =>
+      mergeMatches(merge, children, song, ctx);
 }
 
 /// An empty rule list matches everything.
-bool mergeMatches(MergeRule merge, List<SmartNode> nodes, Song song, SmartContext ctx) {
+bool mergeMatches(
+    MergeRule merge, List<SmartNode> nodes, Song song, SmartContext ctx) {
   if (nodes.isEmpty) return true;
   return merge == MergeRule.all
       ? nodes.every((n) => n.matches(song, ctx))
@@ -236,7 +243,8 @@ class SmartSort {
   Map<String, dynamic> toJson() => {'field': field, 'ascending': ascending};
 
   factory SmartSort.fromJson(Map<String, dynamic> j) =>
-      SmartSort(j['field'] as String? ?? 'title', ascending: j['ascending'] as bool? ?? true);
+      SmartSort(j['field'] as String? ?? 'title',
+          ascending: j['ascending'] as bool? ?? true);
 }
 
 class SmartFilter {
@@ -262,7 +270,8 @@ class SmartFilter {
       };
 
   factory SmartFilter.fromJson(Map<String, dynamic> j) => SmartFilter(
-        merge: MergeRule.values.firstWhere((m) => m.name == j['merge'], orElse: () => MergeRule.all),
+        merge: MergeRule.values.firstWhere((m) => m.name == j['merge'],
+            orElse: () => MergeRule.all),
         rules: [
           for (final r in (j['rules'] as List? ?? const []))
             SmartNode.fromJson(r as Map<String, dynamic>),
@@ -276,7 +285,8 @@ class SmartFilter {
 
   /// Filters, sorts and limits [songs]. [random] makes shuffles deterministic
   /// in tests.
-  List<Song> apply(Iterable<Song> songs, SmartContext ctx, {math.Random? random}) {
+  List<Song> apply(Iterable<Song> songs, SmartContext ctx,
+      {math.Random? random}) {
     final out = [
       for (final s in songs)
         if (mergeMatches(merge, rules, s, ctx)) s,
@@ -287,7 +297,8 @@ class SmartFilter {
     } else if (sort.isNotEmpty) {
       out.sort((a, b) {
         for (final s in sort) {
-          final field = SmartField.values.where((f) => f.name == s.field).firstOrNull;
+          final field =
+              SmartField.values.where((f) => f.name == s.field).firstOrNull;
           if (field == null) continue;
           final c = _compare(field, a, b, ctx);
           if (c != 0) return s.ascending ? c : -c;
@@ -301,17 +312,24 @@ class SmartFilter {
   static int _compare(SmartField f, Song a, Song b, SmartContext ctx) {
     switch (f.type) {
       case FieldType.text:
-        return (_text(f, a) ?? '').toLowerCase().compareTo((_text(f, b) ?? '').toLowerCase());
+        return (_text(f, a) ?? '')
+            .toLowerCase()
+            .compareTo((_text(f, b) ?? '').toLowerCase());
       case FieldType.number:
         return (_num(f, a) ?? -1).compareTo(_num(f, b) ?? -1);
       case FieldType.flag:
-        final fa = f == SmartField.starred ? a.starred : (ctx.isDownloaded?.call(a.id) ?? false);
-        final fb = f == SmartField.starred ? b.starred : (ctx.isDownloaded?.call(b.id) ?? false);
+        final fa = f == SmartField.starred
+            ? a.starred
+            : (ctx.isDownloaded?.call(a.id) ?? false);
+        final fb = f == SmartField.starred
+            ? b.starred
+            : (ctx.isDownloaded?.call(b.id) ?? false);
         return (fa ? 1 : 0).compareTo(fb ? 1 : 0);
       case FieldType.date:
         final da = f == SmartField.added ? a.created : a.played;
         final db = f == SmartField.added ? b.created : b.played;
-        return (da?.millisecondsSinceEpoch ?? 0).compareTo(db?.millisecondsSinceEpoch ?? 0);
+        return (da?.millisecondsSinceEpoch ?? 0)
+            .compareTo(db?.millisecondsSinceEpoch ?? 0);
     }
   }
 
@@ -334,9 +352,11 @@ class SmartFilter {
 }
 
 class SmartPlaylist {
-  const SmartPlaylist({required this.id, required this.title, required this.filter});
+  const SmartPlaylist(
+      {required this.id, required this.title, required this.filter});
 
-  factory SmartPlaylist.create(String title, SmartFilter filter) => SmartPlaylist(
+  factory SmartPlaylist.create(String title, SmartFilter filter) =>
+      SmartPlaylist(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
         title: title,
         filter: filter,
@@ -346,14 +366,16 @@ class SmartPlaylist {
   final String title;
   final SmartFilter filter;
 
-  SmartPlaylist copyWith({String? title, SmartFilter? filter}) =>
-      SmartPlaylist(id: id, title: title ?? this.title, filter: filter ?? this.filter);
+  SmartPlaylist copyWith({String? title, SmartFilter? filter}) => SmartPlaylist(
+      id: id, title: title ?? this.title, filter: filter ?? this.filter);
 
-  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'filter': filter.toJson()};
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'title': title, 'filter': filter.toJson()};
 
   factory SmartPlaylist.fromJson(Map<String, dynamic> j) => SmartPlaylist(
         id: j['id'] as String,
         title: j['title'] as String? ?? 'Smart playlist',
-        filter: SmartFilter.fromJson(j['filter'] as Map<String, dynamic>? ?? const {}),
+        filter: SmartFilter.fromJson(
+            j['filter'] as Map<String, dynamic>? ?? const {}),
       );
 }

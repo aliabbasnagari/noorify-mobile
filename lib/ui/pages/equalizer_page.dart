@@ -25,8 +25,9 @@ class _EqualizerPageState extends State<EqualizerPage> {
     _params = context.read<PlayerController>().equalizerParameters();
   }
 
-  static String _freq(double hz) =>
-      hz >= 1000 ? '${(hz / 1000).toStringAsFixed(hz % 1000 == 0 ? 0 : 1)}k' : hz.round().toString();
+  static String _freq(double hz) => hz >= 1000
+      ? '${(hz / 1000).toStringAsFixed(hz % 1000 == 0 ? 0 : 1)}k'
+      : hz.round().toString();
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +68,8 @@ class _EqualizerPageState extends State<EqualizerPage> {
                 value: p.eqEnabled,
                 onChanged: (v) => settings.updatePlayback((c) => c.copyWith(
                       eqEnabled: v,
-                      eqGains: c.eqGains.isEmpty ? List.filled(n, 0.0) : c.eqGains,
+                      eqGains:
+                          c.eqGains.isEmpty ? List.filled(n, 0.0) : c.eqGains,
                     )),
               ),
               const SizedBox(height: 8),
@@ -82,7 +84,9 @@ class _EqualizerPageState extends State<EqualizerPage> {
                         // so store what will actually be applied.
                         final g = [
                           for (final v in projectGains(preset.gains, n))
-                            v.clamp(params.minDecibels, params.maxDecibels).toDouble(),
+                            v
+                                .clamp(params.minDecibels, params.maxDecibels)
+                                .toDouble(),
                         ];
                         setState(() => _draft = null);
                         settings.updatePlayback(
@@ -111,7 +115,8 @@ class _EqualizerPageState extends State<EqualizerPage> {
                                 child: Slider(
                                   min: params.minDecibels,
                                   max: params.maxDecibels,
-                                  value: gains[i].clamp(params.minDecibels, params.maxDecibels),
+                                  value: gains[i].clamp(
+                                      params.minDecibels, params.maxDecibels),
                                   onChanged: p.eqEnabled
                                       ? (v) {
                                           final next = [...gains]..[i] = v;
@@ -122,7 +127,8 @@ class _EqualizerPageState extends State<EqualizerPage> {
                                   onChangeEnd: (_) {
                                     final committed = _draft;
                                     if (committed == null) return;
-                                    settings.updatePlayback((c) => c.copyWith(eqGains: committed));
+                                    settings.updatePlayback(
+                                        (c) => c.copyWith(eqGains: committed));
                                     setState(() => _draft = null);
                                   },
                                 ),

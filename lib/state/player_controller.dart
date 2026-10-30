@@ -96,6 +96,7 @@ class PlayerController extends BaseAudioHandler
   ConcatenatingAudioSource _source = ConcatenatingAudioSource(children: []);
   final List<Song> _queue = [];
   int? _index;
+  String? _queueSource;
 
   /// Decides when the current track has been heard enough to report a play.
   final PlayTracker _plays = PlayTracker();
@@ -141,6 +142,10 @@ class PlayerController extends BaseAudioHandler
   // --- State ----------------------------------------------------------------
 
   List<Song> get queueSongs => List.unmodifiable(_queue);
+
+  /// Where the queue was started from ("Road trip", "Search results"), for the
+  /// queue panel's "Next from ..." heading, or null when unknown.
+  String? get queueSource => _queueSource;
   int? get currentIndex => _index;
   Song? get current =>
       (_index != null && _index! >= 0 && _index! < _queue.length)
@@ -201,13 +206,16 @@ class PlayerController extends BaseAudioHandler
     return AudioSource.uri(client.streamUrl(s.id), tag: tag);
   }
 
-  /// Replaces the queue with [songs] and starts playing at [index].
+  /// Replaces the queue with [songs] and starts playing at [index]. [source]
+  /// names where the songs came from, for the queue panel.
   Future<void> playSongs(
     List<Song> songs, {
     int index = 0,
     bool shuffle = false,
+    String? source,
   }) async {
     if (songs.isEmpty) return;
+    _queueSource = source;
     _queue
       ..clear()
       ..addAll(songs);
@@ -322,6 +330,7 @@ class PlayerController extends BaseAudioHandler
     await _player.stop();
     _plays.reset();
     _queue.clear();
+    _queueSource = null;
     _source = ConcatenatingAudioSource(children: []);
     _index = null;
     _broadcastQueue();

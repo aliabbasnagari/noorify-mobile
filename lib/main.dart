@@ -8,9 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'data/local/app_database.dart';
 import 'state/download_controller.dart';
+import 'state/library_recents.dart';
 import 'state/player_controller.dart';
 import 'state/playlists_revision.dart';
 import 'state/session_controller.dart';
+import 'state/search_query.dart';
 import 'state/settings_controller.dart';
 import 'state/smart_playlist_store.dart';
 import 'state/star_controller.dart';
@@ -42,6 +44,8 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => SessionController()..restore()),
         ChangeNotifierProvider(create: (_) => SettingsController(prefs)),
         ChangeNotifierProvider(create: (_) => PlaylistsRevision()),
+        ChangeNotifierProvider(create: (_) => SearchQuery()),
+        ChangeNotifierProvider(create: (_) => LibraryRecents(prefs)),
         ChangeNotifierProvider(create: (_) => SmartPlaylistStore(prefs)),
         Provider(create: (_) => AppDatabase()),
         ChangeNotifierProxyProvider<SessionController, SyncController>(

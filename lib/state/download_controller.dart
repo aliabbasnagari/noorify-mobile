@@ -82,7 +82,8 @@ class DownloadController extends ChangeNotifier {
   DownloadController({
     Future<Directory> Function()? directoryProvider,
     http.Client Function()? httpClientFactory,
-  })  : _directoryProvider = directoryProvider ?? getApplicationSupportDirectory,
+  })  : _directoryProvider =
+            directoryProvider ?? getApplicationSupportDirectory,
         _httpClientFactory = httpClientFactory ?? http.Client.new;
 
   static const manualSource = 'manual';

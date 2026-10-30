@@ -177,19 +177,22 @@ void main() {
 
       expect(endpoint(sent), 'createInternetRadioStation.view');
       expect(sent.queryParameters['name'], 'FM');
-      expect(sent.queryParameters['streamUrl'], 'https://radio.example.com/live');
+      expect(
+          sent.queryParameters['streamUrl'], 'https://radio.example.com/live');
       expect(sent.queryParameters['homepageUrl'], 'https://radio.example.com');
     });
 
     test('createInternetRadio leaves the homepage out when there is none',
         () async {
-      await clientReplying().createInternetRadio('FM', 'https://r.example/live');
+      await clientReplying()
+          .createInternetRadio('FM', 'https://r.example/live');
 
       expect(sent.queryParameters.containsKey('homepageUrl'), isFalse);
     });
 
     test('updateInternetRadio sends the station id and new details', () async {
-      await clientReplying().updateInternetRadio('r1', 'FM 2', 'https://r.example/2');
+      await clientReplying()
+          .updateInternetRadio('r1', 'FM 2', 'https://r.example/2');
 
       expect(endpoint(sent), 'updateInternetRadioStation.view');
       expect(sent.queryParameters['id'], 'r1');

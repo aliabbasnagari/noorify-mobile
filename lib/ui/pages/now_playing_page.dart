@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
-import 'package:rxdart/rxdart.dart';
 
 import '../../models/models.dart';
 import '../../state/player_controller.dart';
 import '../../state/star_controller.dart';
 import '../routing/navigation.dart';
-import '../util.dart';
 import '../widgets/art_hero_background.dart';
 import '../widgets/cover_art.dart';
+import '../widgets/seek_bar.dart';
 import 'queue_sheet.dart';
 
 class NowPlayingPage extends StatelessWidget {
@@ -92,7 +91,7 @@ class NowPlayingPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _SeekBar(player: player, fallbackSeconds: song.duration),
+                  SeekBar(player: player, fallbackSeconds: song.duration),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -191,83 +190,6 @@ class _PlayButton extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       icon: Icon(player.isPlaying ? Icons.pause : Icons.play_arrow),
       onPressed: player.togglePlay,
-    );
-  }
-}
-
-class _PositionData {
-  const _PositionData(this.position, this.duration);
-
-  final Duration position;
-  final Duration duration;
-}
-
-class _SeekBar extends StatefulWidget {
-  const _SeekBar({required this.player, required this.fallbackSeconds});
-
-  final PlayerController player;
-  final int fallbackSeconds;
-
-  @override
-  State<_SeekBar> createState() => _SeekBarState();
-}
-
-class _SeekBarState extends State<_SeekBar> {
-  /// Slider value (ms) while the user is dragging; null otherwise.
-  double? _dragging;
-
-  late final Stream<_PositionData> _stream;
-
-  @override
-  void initState() {
-    super.initState();
-    // Built once so rebuilds (e.g. while dragging) don't resubscribe.
-    _stream = Rx.combineLatest2<Duration, Duration?, _PositionData>(
-      widget.player.positionStream,
-      widget.player.durationStream,
-      (p, d) =>
-          _PositionData(p, d ?? Duration(seconds: widget.fallbackSeconds)),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final player = widget.player;
-
-    return StreamBuilder<_PositionData>(
-      stream: _stream,
-      builder: (context, snap) {
-        final data = snap.data ??
-            _PositionData(
-                Duration.zero, Duration(seconds: widget.fallbackSeconds));
-        final maxMs = data.duration.inMilliseconds.toDouble();
-        final posMs = (_dragging ?? data.position.inMilliseconds.toDouble())
-            .clamp(0.0, maxMs > 0 ? maxMs : 1.0);
-        return Column(
-          children: [
-            Slider(
-              value: posMs,
-              max: maxMs > 0 ? maxMs : 1.0,
-              onChanged:
-                  maxMs > 0 ? (v) => setState(() => _dragging = v) : null,
-              onChangeEnd: (v) {
-                player.seek(Duration(milliseconds: v.round()));
-                setState(() => _dragging = null);
-              },
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(formatDuration((posMs / 1000).round())),
-                  Text(formatDuration(data.duration.inSeconds)),
-                ],
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }

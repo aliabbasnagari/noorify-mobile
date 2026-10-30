@@ -412,6 +412,38 @@ void main() {
     });
   });
 
+  group('queue source', () {
+    test('remembers where the queue was started from', () async {
+      await player.playSongs([song('a'), song('b')], source: 'Road trip');
+
+      expect(player.queueSource, 'Road trip');
+    });
+
+    test('starting a new queue without a source forgets the old one', () async {
+      await player.playSongs([song('a')], source: 'Road trip');
+
+      await player.playSongs([song('b')]);
+
+      expect(player.queueSource, isNull);
+    });
+
+    test('stopping clears it', () async {
+      await player.playSongs([song('a')], source: 'Road trip');
+
+      await player.stop();
+
+      expect(player.queueSource, isNull);
+    });
+
+    test('adding to the queue keeps the source', () async {
+      await player.playSongs([song('a')], source: 'Road trip');
+
+      await player.addToQueue(song('b'));
+
+      expect(player.queueSource, 'Road trip');
+    });
+  });
+
   group('user volume', () {
     test('scales the playback volume and is remembered in the settings',
         () async {

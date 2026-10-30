@@ -51,9 +51,11 @@ class HomeLayoutPage extends StatelessWidget {
                   tooltip: 'Items',
                   icon: const Icon(Icons.format_list_numbered),
                   initialValue: row.count,
-                  onSelected: (c) => save([...rows]..[i] = row.copyWith(count: c)),
+                  onSelected: (c) =>
+                      save([...rows]..[i] = row.copyWith(count: c)),
                   itemBuilder: (_) => [
-                    for (final c in _counts) PopupMenuItem(value: c, child: Text('$c items')),
+                    for (final c in _counts)
+                      PopupMenuItem(value: c, child: Text('$c items')),
                   ],
                 ),
                 ReorderableDragStartListener(

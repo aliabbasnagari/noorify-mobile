@@ -10,12 +10,14 @@ import 'app_routes.dart';
 /// instead of using one fixed path per page.
 extension AppNavigation on BuildContext {
   /// Index of the tab this widget is inside, or 0 outside the tab shell.
-  int get _branchIndex => StatefulNavigationShell.maybeOf(this)?.currentIndex ?? 0;
+  int get _branchIndex =>
+      StatefulNavigationShell.maybeOf(this)?.currentIndex ?? 0;
 
   Future<T?> _open<T extends Object?>(String detail) =>
       push<T>(AppRoutes.branchPath(_branchIndex, detail));
 
-  Future<void> openAlbum(String id) => _open('album/${Uri.encodeComponent(id)}');
+  Future<void> openAlbum(String id) =>
+      _open('album/${Uri.encodeComponent(id)}');
 
   Future<void> openArtist(String id) =>
       _open('artist/${Uri.encodeComponent(id)}');

@@ -34,7 +34,9 @@ class _LoginPageState extends State<LoginPage> {
       _error = null;
     });
     try {
-      await context.read<SessionController>().login(_url.text, _user.text, _pass.text);
+      await context
+          .read<SessionController>()
+          .login(_url.text, _user.text, _pass.text);
       // On success the root widget swaps to the home shell.
     } on Object catch (e) {
       if (mounted) setState(() => _error = '$e');
@@ -65,7 +67,9 @@ class _LoginPageState extends State<LoginPage> {
                       color: Theme.of(context).colorScheme.primary,
                     ),
                     const SizedBox(height: 12),
-                    Text('Noorify', textAlign: TextAlign.center, style: textTheme.headlineMedium),
+                    Text('Noorify',
+                        textAlign: TextAlign.center,
+                        style: textTheme.headlineMedium),
                     const SizedBox(height: 4),
                     Text(
                       'Connect to your Subsonic / OpenSubsonic server',
@@ -82,8 +86,9 @@ class _LoginPageState extends State<LoginPage> {
                         hintText: 'https://music.example.com',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Enter the server URL' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Enter the server URL'
+                          : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -93,8 +98,9 @@ class _LoginPageState extends State<LoginPage> {
                         labelText: 'Username',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Enter your username' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Enter your username'
+                          : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -105,17 +111,22 @@ class _LoginPageState extends State<LoginPage> {
                         labelText: 'Password',
                         border: const OutlineInputBorder(),
                         suffixIcon: IconButton(
-                          icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                          icon: Icon(_obscure
+                              ? Icons.visibility
+                              : Icons.visibility_off),
                           onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
-                      validator: (v) => (v == null || v.isEmpty) ? 'Enter your password' : null,
+                      validator: (v) => (v == null || v.isEmpty)
+                          ? 'Enter your password'
+                          : null,
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 12),
                       Text(
                         _error!,
-                        style: TextStyle(color: Theme.of(context).colorScheme.error),
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error),
                       ),
                     ],
                     const SizedBox(height: 20),

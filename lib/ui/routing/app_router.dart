@@ -23,6 +23,7 @@ import '../pages/settings_page.dart';
 import '../pages/smart_filter_editor.dart';
 import '../pages/smart_playlist_page.dart';
 import '../pages/smart_playlists_view.dart';
+import '../widgets/records_open.dart';
 import '../pages/song_list_page.dart';
 import 'app_routes.dart';
 
@@ -128,24 +129,38 @@ GoRouter buildAppRouter({
 List<RouteBase> _detailRoutes() => [
       GoRoute(
         path: 'album/:id',
-        builder: (_, state) => AlbumPage(albumId: state.pathParameters['id']!),
+        builder: (_, state) => RecordsOpen(
+          libraryKey: 'album:${state.pathParameters['id']}',
+          child: AlbumPage(albumId: state.pathParameters['id']!),
+        ),
       ),
       GoRoute(
         path: 'artist/:id',
-        builder: (_, state) =>
-            ArtistPage(artistId: state.pathParameters['id']!),
+        builder: (_, state) => RecordsOpen(
+          libraryKey: 'artist:${state.pathParameters['id']}',
+          child: ArtistPage(artistId: state.pathParameters['id']!),
+        ),
       ),
       GoRoute(
         path: 'playlist/:id',
-        builder: (_, state) => PlaylistPage(
-          playlistId: state.pathParameters['id']!,
-          name: state.uri.queryParameters['name'] ?? '',
+        builder: (_, state) => RecordsOpen(
+          libraryKey: 'playlist:${state.pathParameters['id']}',
+          child: PlaylistPage(
+            playlistId: state.pathParameters['id']!,
+            name: state.uri.queryParameters['name'] ?? '',
+          ),
         ),
       ),
       GoRoute(path: 'albums', builder: (_, __) => const AlbumListPage()),
       GoRoute(path: 'artists', builder: (_, __) => const ArtistListPage()),
       GoRoute(path: 'songs', builder: (_, __) => const SongListPage()),
-      GoRoute(path: 'favorites', builder: (_, __) => const FavoritesPage()),
+      GoRoute(
+        path: 'favorites',
+        builder: (_, __) => const RecordsOpen(
+          libraryKey: 'favorites',
+          child: FavoritesPage(),
+        ),
+      ),
       GoRoute(path: 'downloads', builder: (_, __) => const DownloadsPage()),
       GoRoute(
         path: 'smart',
@@ -155,8 +170,10 @@ List<RouteBase> _detailRoutes() => [
           GoRoute(path: 'new', builder: (_, __) => const SmartFilterEditor()),
           GoRoute(
             path: ':id',
-            builder: (_, state) =>
-                SmartPlaylistPage(playlistId: state.pathParameters['id']!),
+            builder: (_, state) => RecordsOpen(
+              libraryKey: 'smart:${state.pathParameters['id']}',
+              child: SmartPlaylistPage(playlistId: state.pathParameters['id']!),
+            ),
             routes: [
               GoRoute(
                 path: 'edit',

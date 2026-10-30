@@ -45,7 +45,8 @@ class SmartPlaylistsView extends StatelessWidget {
                 ),
                 trailing: sync.isSyncing
                     ? null
-                    : FilledButton.tonal(onPressed: sync.sync, child: const Text('Sync')),
+                    : FilledButton.tonal(
+                        onPressed: sync.sync, child: const Text('Sync')),
               ),
             ),
           if (items.isEmpty)

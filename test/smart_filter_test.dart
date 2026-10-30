@@ -30,7 +30,13 @@ void main() {
       playCount: 3,
       created: now.subtract(const Duration(days: 90)),
     ),
-    const Song(id: 'c', title: 'Roygbiv', artist: 'Boards of Canada', genre: 'Electronic', year: 1998, duration: 150),
+    const Song(
+        id: 'c',
+        title: 'Roygbiv',
+        artist: 'Boards of Canada',
+        genre: 'Electronic',
+        year: 1998,
+        duration: 150),
     const Song(id: 'd', title: 'Untagged', duration: 60),
   ];
 
@@ -40,46 +46,68 @@ void main() {
   group('rules', () {
     test('text operators are case-insensitive', () {
       expect(
-        ids(const SmartFilter(rules: [SmartRule(SmartField.genre, SmartOperator.equals, 'jazz')])),
+        ids(const SmartFilter(rules: [
+          SmartRule(SmartField.genre, SmartOperator.equals, 'jazz')
+        ])),
         ['a', 'b'],
       );
       expect(
-        ids(const SmartFilter(rules: [SmartRule(SmartField.artist, SmartOperator.startsWith, 'boards')])),
+        ids(const SmartFilter(rules: [
+          SmartRule(SmartField.artist, SmartOperator.startsWith, 'boards')
+        ])),
         ['c'],
       );
       expect(
         // "Blue in Green" and "Untagged" have no letter o.
-        ids(const SmartFilter(rules: [SmartRule(SmartField.title, SmartOperator.notContains, 'o')])),
+        ids(const SmartFilter(rules: [
+          SmartRule(SmartField.title, SmartOperator.notContains, 'o')
+        ])),
         ['a', 'd'],
       );
     });
 
     test('numeric operators ignore unknown values for greater/less', () {
       expect(
-        ids(const SmartFilter(rules: [SmartRule(SmartField.year, SmartOperator.lessThan, '1990')])),
+        ids(const SmartFilter(rules: [
+          SmartRule(SmartField.year, SmartOperator.lessThan, '1990')
+        ])),
         ['a', 'b'],
       );
       // "d" has no year: never greater, but is "not equal".
       expect(
-        ids(const SmartFilter(rules: [SmartRule(SmartField.year, SmartOperator.notEquals, '1959')])),
+        ids(const SmartFilter(rules: [
+          SmartRule(SmartField.year, SmartOperator.notEquals, '1959')
+        ])),
         ['c', 'd'],
       );
       expect(
-        ids(const SmartFilter(rules: [SmartRule(SmartField.year, SmartOperator.greaterThan, 'abc')])),
+        ids(const SmartFilter(rules: [
+          SmartRule(SmartField.year, SmartOperator.greaterThan, 'abc')
+        ])),
         isEmpty,
       );
     });
 
     test('flag and date operators', () {
-      expect(ids(const SmartFilter(rules: [SmartRule(SmartField.starred, SmartOperator.isTrue)])), ['a']);
-      expect(ids(const SmartFilter(rules: [SmartRule(SmartField.downloaded, SmartOperator.isTrue)])), ['d']);
       expect(
-        ids(const SmartFilter(rules: [SmartRule(SmartField.added, SmartOperator.inLastDays, '30')])),
+          ids(const SmartFilter(
+              rules: [SmartRule(SmartField.starred, SmartOperator.isTrue)])),
+          ['a']);
+      expect(
+          ids(const SmartFilter(
+              rules: [SmartRule(SmartField.downloaded, SmartOperator.isTrue)])),
+          ['d']);
+      expect(
+        ids(const SmartFilter(rules: [
+          SmartRule(SmartField.added, SmartOperator.inLastDays, '30')
+        ])),
         ['a'],
       );
       // Songs with no date count as "not in the last N days".
       expect(
-        ids(const SmartFilter(rules: [SmartRule(SmartField.added, SmartOperator.notInLastDays, '30')])),
+        ids(const SmartFilter(rules: [
+          SmartRule(SmartField.added, SmartOperator.notInLastDays, '30')
+        ])),
         ['b', 'c', 'd'],
       );
     });
@@ -92,7 +120,8 @@ void main() {
         SmartRule(SmartField.playCount, SmartOperator.greaterThan, '5'),
       ];
       expect(ids(const SmartFilter(rules: rules)), ['a']);
-      expect(ids(const SmartFilter(merge: MergeRule.any, rules: rules)), ['a', 'b']);
+      expect(ids(const SmartFilter(merge: MergeRule.any, rules: rules)),
+          ['a', 'b']);
     });
 
     test('nested group has its own merge rule', () {
@@ -141,7 +170,8 @@ void main() {
         merge: MergeRule.any,
         rules: [
           SmartRule(SmartField.genre, SmartOperator.contains, 'jazz'),
-          SmartGroup(MergeRule.all, [SmartRule(SmartField.starred, SmartOperator.isTrue)]),
+          SmartGroup(MergeRule.all,
+              [SmartRule(SmartField.starred, SmartOperator.isTrue)]),
         ],
         sort: [SmartSort('added', ascending: false)],
         limit: 50,
@@ -151,7 +181,8 @@ void main() {
     });
 
     test('unknown fields and operators fall back instead of throwing', () {
-      final rule = SmartRule.fromJson({'field': 'nope', 'operator': 'nope', 'value': 1});
+      final rule =
+          SmartRule.fromJson({'field': 'nope', 'operator': 'nope', 'value': 1});
       expect(rule.field, SmartField.title);
       expect(rule.operator, SmartOperator.contains);
       expect(rule.value, '1');

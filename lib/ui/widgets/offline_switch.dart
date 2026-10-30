@@ -8,7 +8,8 @@ import '../../state/download_controller.dart';
 /// collection is kept in sync with the server (new songs download
 /// automatically).
 class OfflineSwitch extends StatelessWidget {
-  const OfflineSwitch({super.key, required this.collection, required this.songs});
+  const OfflineSwitch(
+      {super.key, required this.collection, required this.songs});
 
   final OfflineCollection collection;
   final List<Song> songs;

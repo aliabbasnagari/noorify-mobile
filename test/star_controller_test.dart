@@ -63,7 +63,8 @@ void main() {
     expect(stars.isStarred(song), isFalse);
   });
 
-  test('the state is notified immediately, before the server answers', () async {
+  test('the state is notified immediately, before the server answers',
+      () async {
     final stars = controllerReplying({'status': 'ok'});
     const song = Song(id: 's1', title: 'One');
     var notified = 0;

@@ -26,7 +26,8 @@ class SongListPage extends StatelessWidget {
             IconButton(
               tooltip: 'Shuffle all',
               icon: const Icon(Icons.shuffle),
-              onPressed: () => player.playSongs(songs, shuffle: true),
+              onPressed: () =>
+                  player.playSongs(songs, shuffle: true, source: 'Songs'),
             ),
         ],
       ),
@@ -48,7 +49,7 @@ class _SongList extends StatelessWidget {
         itemCount: songs.length,
         itemBuilder: (_, i) => SongTile(
           song: songs[i],
-          onTap: () => player.playSongs(songs, index: i),
+          onTap: () => player.playSongs(songs, index: i, source: 'Songs'),
         ),
       );
 }

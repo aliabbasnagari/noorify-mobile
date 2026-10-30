@@ -29,8 +29,8 @@ class _AlbumPageState extends State<AlbumPage> {
     _load();
   }
 
-  void _load() =>
-      _future = context.read<SessionController>().client!.getAlbum(widget.albumId);
+  void _load() => _future =
+      context.read<SessionController>().client!.getAlbum(widget.albumId);
 
   @override
   Widget build(BuildContext context) {
@@ -40,9 +40,12 @@ class _AlbumPageState extends State<AlbumPage> {
         future: _future,
         builder: (context, snap) {
           if (snap.hasError) {
-            return ErrorRetry(error: snap.error!, onRetry: () => setState(_load));
+            return ErrorRetry(
+                error: snap.error!, onRetry: () => setState(_load));
           }
-          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
           return _AlbumBody(album: snap.data!);
         },
       ),
@@ -73,7 +76,11 @@ class _AlbumBody extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              CoverArt(coverArt: album.coverArt, size: 140, requestSize: 400, radius: 12),
+              CoverArt(
+                  coverArt: album.coverArt,
+                  size: 140,
+                  requestSize: 400,
+                  radius: 12),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -106,7 +113,9 @@ class _AlbumBody extends StatelessWidget {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: songs.isEmpty ? null : () => player.playSongs(songs),
+                  onPressed: songs.isEmpty
+                      ? null
+                      : () => player.playSongs(songs, source: album.name),
                   icon: const Icon(Icons.play_arrow),
                   label: const Text('Play'),
                 ),
@@ -114,8 +123,10 @@ class _AlbumBody extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: FilledButton.tonalIcon(
-                  onPressed:
-                      songs.isEmpty ? null : () => player.playSongs(songs, shuffle: true),
+                  onPressed: songs.isEmpty
+                      ? null
+                      : () => player.playSongs(songs,
+                          shuffle: true, source: album.name),
                   icon: const Icon(Icons.shuffle),
                   label: const Text('Shuffle'),
                 ),
@@ -123,13 +134,16 @@ class _AlbumBody extends StatelessWidget {
               IconButton(
                 tooltip: 'Add album to playlist',
                 icon: const Icon(Icons.playlist_add),
-                onPressed: songs.isEmpty ? null : () => showAddToPlaylistSheet(context, songs),
+                onPressed: songs.isEmpty
+                    ? null
+                    : () => showAddToPlaylistSheet(context, songs),
               ),
             ],
           ),
         ),
         OfflineSwitch(
-          collection: OfflineCollection(type: 'album', id: album.id, title: album.name),
+          collection:
+              OfflineCollection(type: 'album', id: album.id, title: album.name),
           songs: songs,
         ),
         const SizedBox(height: 8),
@@ -138,7 +152,7 @@ class _AlbumBody extends StatelessWidget {
             song: songs[i],
             showCover: false,
             showTrackNumber: true,
-            onTap: () => player.playSongs(songs, index: i),
+            onTap: () => player.playSongs(songs, index: i, source: album.name),
           ),
         const SizedBox(height: 16),
       ],

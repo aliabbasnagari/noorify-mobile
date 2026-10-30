@@ -105,6 +105,63 @@ class PlaybackSettings {
       );
 }
 
+/// How the Your Library list is drawn.
+enum LibraryViewMode { list, compact, grid }
+
+/// How the Your Library list is ordered. Favorites always stays on top.
+enum LibrarySort { recents, alphabetical }
+
+/// Layout choices for the wide (desktop and web) shell that should come back
+/// next time the app opens.
+class ShellLayoutSettings {
+  const ShellLayoutSettings({
+    this.sidebarCollapsed = false,
+    this.queuePanelOpen = true,
+    this.libraryView = LibraryViewMode.list,
+    this.librarySort = LibrarySort.recents,
+  });
+
+  /// The library sidebar shows only cover art when collapsed.
+  final bool sidebarCollapsed;
+  final bool queuePanelOpen;
+  final LibraryViewMode libraryView;
+  final LibrarySort librarySort;
+
+  ShellLayoutSettings copyWith({
+    bool? sidebarCollapsed,
+    bool? queuePanelOpen,
+    LibraryViewMode? libraryView,
+    LibrarySort? librarySort,
+  }) =>
+      ShellLayoutSettings(
+        sidebarCollapsed: sidebarCollapsed ?? this.sidebarCollapsed,
+        queuePanelOpen: queuePanelOpen ?? this.queuePanelOpen,
+        libraryView: libraryView ?? this.libraryView,
+        librarySort: librarySort ?? this.librarySort,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'sidebarCollapsed': sidebarCollapsed,
+        'queuePanelOpen': queuePanelOpen,
+        'libraryView': libraryView.name,
+        'librarySort': librarySort.name,
+      };
+
+  factory ShellLayoutSettings.fromJson(Map<String, dynamic> j) =>
+      ShellLayoutSettings(
+        sidebarCollapsed: j['sidebarCollapsed'] as bool? ?? false,
+        queuePanelOpen: j['queuePanelOpen'] as bool? ?? true,
+        libraryView: LibraryViewMode.values.firstWhere(
+          (m) => m.name == j['libraryView'],
+          orElse: () => LibraryViewMode.list,
+        ),
+        librarySort: LibrarySort.values.firstWhere(
+          (m) => m.name == j['librarySort'],
+          orElse: () => LibrarySort.recents,
+        ),
+      );
+}
+
 /// One configurable shelf on the home screen.
 class HomeRowConfig {
   const HomeRowConfig({required this.id, this.visible = true, this.count = 20});

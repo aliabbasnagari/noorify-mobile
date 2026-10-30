@@ -29,8 +29,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
     _load();
   }
 
-  void _load() =>
-      _future = context.read<SessionController>().client!.getPlaylist(widget.playlistId);
+  void _load() => _future =
+      context.read<SessionController>().client!.getPlaylist(widget.playlistId);
 
   Future<void> _delete() async {
     final client = context.read<SessionController>().client!;
@@ -40,8 +40,12 @@ class _PlaylistPageState extends State<PlaylistPage> {
       builder: (ctx) => AlertDialog(
         title: Text('Delete "${widget.name}"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete')),
         ],
       ),
     );
@@ -82,11 +86,17 @@ class _PlaylistPageState extends State<PlaylistPage> {
         future: _future,
         builder: (context, snap) {
           if (snap.hasError) {
-            return ErrorRetry(error: snap.error!, onRetry: () => setState(_load));
+            return ErrorRetry(
+                error: snap.error!, onRetry: () => setState(_load));
           }
-          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
           final songs = snap.data!.songs;
-          if (songs.isEmpty) return const Center(child: Text('This playlist is empty'));
+          final playlistName = snap.data!.name;
+          if (songs.isEmpty) {
+            return const Center(child: Text('This playlist is empty'));
+          }
           return ListView(
             children: [
               Padding(
@@ -95,7 +105,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
                   children: [
                     Expanded(
                       child: FilledButton.icon(
-                        onPressed: () => player.playSongs(songs),
+                        onPressed: () =>
+                            player.playSongs(songs, source: playlistName),
                         icon: const Icon(Icons.play_arrow),
                         label: const Text('Play'),
                       ),
@@ -103,7 +114,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: FilledButton.tonalIcon(
-                        onPressed: () => player.playSongs(songs, shuffle: true),
+                        onPressed: () => player.playSongs(songs,
+                            shuffle: true, source: playlistName),
                         icon: const Icon(Icons.shuffle),
                         label: const Text('Shuffle'),
                       ),
@@ -122,7 +134,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
               for (var i = 0; i < songs.length; i++)
                 SongTile(
                   song: songs[i],
-                  onTap: () => player.playSongs(songs, index: i),
+                  onTap: () =>
+                      player.playSongs(songs, index: i, source: playlistName),
                   extraActions: [
                     PopupMenuItem<VoidCallback>(
                       value: () => _removeAt(i),

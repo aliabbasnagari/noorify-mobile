@@ -13,8 +13,9 @@ void main() {
         location: Uri.parse(location),
       );
 
-  String? fromOf(String? redirectTarget) =>
-      redirectTarget == null ? null : Uri.parse(redirectTarget).queryParameters['from'];
+  String? fromOf(String? redirectTarget) => redirectTarget == null
+      ? null
+      : Uri.parse(redirectTarget).queryParameters['from'];
 
   group('while the saved session is restored', () {
     test('every page shows the loading page and remembers the target', () {

@@ -30,10 +30,15 @@ class DownloadsPage extends StatelessWidget {
                   context: context,
                   builder: (ctx) => AlertDialog(
                     title: const Text('Remove all downloads?'),
-                    content: const Text('Downloaded files and offline collections will be deleted.'),
+                    content: const Text(
+                        'Downloaded files and offline collections will be deleted.'),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                      FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remove')),
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancel')),
+                      FilledButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Remove')),
                     ],
                   ),
                 );
@@ -45,14 +50,16 @@ class DownloadsPage extends StatelessWidget {
       body: ListView(
         children: [
           ListTile(
-            title: Text('${songs.length} songs • ${formatBytes(downloads.usedBytes)}'),
+            title: Text(
+                '${songs.length} songs • ${formatBytes(downloads.usedBytes)}'),
             subtitle: downloads.activeCount > 0
                 ? Text('${downloads.activeCount} in progress')
                 : null,
           ),
           if (failures.isNotEmpty)
             ListTile(
-              leading: Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error),
+              leading: Icon(Icons.error_outline,
+                  color: Theme.of(context).colorScheme.error),
               title: Text('${failures.length} downloads failed'),
               subtitle: Text(failures.values.first),
             ),
@@ -63,7 +70,8 @@ class DownloadsPage extends StatelessWidget {
             ),
             for (final c in collections)
               ListTile(
-                leading: Icon(c.type == 'album' ? Icons.album : Icons.queue_music),
+                leading:
+                    Icon(c.type == 'album' ? Icons.album : Icons.queue_music),
                 title: Text(c.title),
                 subtitle: Text(c.type == 'album' ? 'Album' : 'Playlist'),
                 trailing: IconButton(
@@ -80,8 +88,13 @@ class DownloadsPage extends StatelessWidget {
             ),
             for (var i = 0; i < songs.length; i++)
               ListTile(
-                leading: CoverArt(coverArt: songs[i].song.coverArt, size: 44, requestSize: 100, radius: 6),
-                title: Text(songs[i].song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                leading: CoverArt(
+                    coverArt: songs[i].song.coverArt,
+                    size: 44,
+                    requestSize: 100,
+                    radius: 6),
+                title: Text(songs[i].song.title,
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(
                   '${songs[i].song.artist ?? ''} • ${formatBytes(songs[i].bytes)}',
                   maxLines: 1,
@@ -91,7 +104,8 @@ class DownloadsPage extends StatelessWidget {
                   icon: const Icon(Icons.delete_outline),
                   onPressed: () => downloads.removeSong(songs[i].song.id),
                 ),
-                onTap: () => player.playSongs([for (final d in songs) d.song], index: i),
+                onTap: () => player.playSongs([for (final d in songs) d.song],
+                    index: i, source: 'Downloads'),
               ),
           ],
           if (songs.isEmpty && collections.isEmpty)

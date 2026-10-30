@@ -45,7 +45,8 @@ class _SmartFilterEditorState extends State<SmartFilterEditor> {
     final e = widget.existing;
     final filter = e?.filter ?? const SmartFilter();
     _title = TextEditingController(text: e?.title ?? '');
-    _limit = TextEditingController(text: filter.limit > 0 ? '${filter.limit}' : '');
+    _limit =
+        TextEditingController(text: filter.limit > 0 ? '${filter.limit}' : '');
     _merge = filter.merge;
     final firstSort = filter.sort.isEmpty ? null : filter.sort.first;
     _sortField = firstSort?.field;
@@ -76,15 +77,17 @@ class _SmartFilterEditorState extends State<SmartFilterEditor> {
   SmartFilter _buildFilter() => SmartFilter(
         merge: _merge,
         rules: [for (final r in _rules) r.toRule(), ..._groups],
-        sort: _sortField == null ? const [] : [SmartSort(_sortField!, ascending: _ascending)],
+        sort: _sortField == null
+            ? const []
+            : [SmartSort(_sortField!, ascending: _ascending)],
         limit: int.tryParse(_limit.text.trim()) ?? 0,
       );
 
   Future<void> _save() async {
     final title = _title.text.trim();
     if (title.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Give the playlist a name')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Give the playlist a name')));
       return;
     }
     final store = context.read<SmartPlaylistStore>();
@@ -112,7 +115,9 @@ class _SmartFilterEditorState extends State<SmartFilterEditor> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.existing == null ? 'New smart playlist' : 'Edit smart playlist'),
+        title: Text(widget.existing == null
+            ? 'New smart playlist'
+            : 'Edit smart playlist'),
         actions: [TextButton(onPressed: _save, child: const Text('Save'))],
       ),
       body: ListView(
@@ -120,7 +125,8 @@ class _SmartFilterEditorState extends State<SmartFilterEditor> {
         children: [
           TextField(
             controller: _title,
-            decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+                labelText: 'Name', border: OutlineInputBorder()),
           ),
           const SizedBox(height: 16),
           Row(
@@ -151,7 +157,8 @@ class _SmartFilterEditorState extends State<SmartFilterEditor> {
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
               onPressed: () => setState(
-                () => _rules.add(_RuleDraft(SmartField.title, SmartOperator.contains, '')),
+                () => _rules.add(
+                    _RuleDraft(SmartField.title, SmartOperator.contains, '')),
               ),
               icon: const Icon(Icons.add),
               label: const Text('Add rule'),
@@ -163,13 +170,16 @@ class _SmartFilterEditorState extends State<SmartFilterEditor> {
               Expanded(
                 child: DropdownButtonFormField<String?>(
                   initialValue: _sortField,
-                  decoration: const InputDecoration(labelText: 'Sort by', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                      labelText: 'Sort by', border: OutlineInputBorder()),
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('Default order')),
+                    const DropdownMenuItem(
+                        value: null, child: Text('Default order')),
                     for (final f in SmartField.values)
                       if (f.type != FieldType.flag)
                         DropdownMenuItem(value: f.name, child: Text(f.label)),
-                    const DropdownMenuItem(value: SmartSort.random, child: Text('Random')),
+                    const DropdownMenuItem(
+                        value: SmartSort.random, child: Text('Random')),
                   ],
                   onChanged: (v) => setState(() => _sortField = v),
                 ),
@@ -177,10 +187,12 @@ class _SmartFilterEditorState extends State<SmartFilterEditor> {
               const SizedBox(width: 12),
               IconButton.outlined(
                 tooltip: _ascending ? 'Ascending' : 'Descending',
-                onPressed: (_sortField == null || _sortField == SmartSort.random)
-                    ? null
-                    : () => setState(() => _ascending = !_ascending),
-                icon: Icon(_ascending ? Icons.arrow_upward : Icons.arrow_downward),
+                onPressed:
+                    (_sortField == null || _sortField == SmartSort.random)
+                        ? null
+                        : () => setState(() => _ascending = !_ascending),
+                icon: Icon(
+                    _ascending ? Icons.arrow_upward : Icons.arrow_downward),
               ),
             ],
           ),
@@ -200,7 +212,9 @@ class _SmartFilterEditorState extends State<SmartFilterEditor> {
             child: ListTile(
               leading: const Icon(Icons.preview),
               title: Text(
-                matches == null ? 'Sync your library to preview' : '${matches.length} matching songs',
+                matches == null
+                    ? 'Sync your library to preview'
+                    : '${matches.length} matching songs',
               ),
               subtitle: matches == null || matches.isEmpty
                   ? null
@@ -255,7 +269,8 @@ class _SmartFilterEditorState extends State<SmartFilterEditor> {
                 IconButton(
                   tooltip: 'Remove rule',
                   icon: const Icon(Icons.close),
-                  onPressed: () => setState(() => _rules.removeAt(i).value.dispose()),
+                  onPressed: () =>
+                      setState(() => _rules.removeAt(i).value.dispose()),
                 ),
               ],
             ),
@@ -266,12 +281,16 @@ class _SmartFilterEditorState extends State<SmartFilterEditor> {
                     // initialValue is read once, so re-key when the field (and
                     // therefore the operator list) changes.
                     key: ValueKey((rule, rule.field)),
-                    initialValue: operators.contains(rule.operator) ? rule.operator : operators.first,
+                    initialValue: operators.contains(rule.operator)
+                        ? rule.operator
+                        : operators.first,
                     decoration: const InputDecoration(labelText: 'Condition'),
                     items: [
-                      for (final o in operators) DropdownMenuItem(value: o, child: Text(o.label)),
+                      for (final o in operators)
+                        DropdownMenuItem(value: o, child: Text(o.label)),
                     ],
-                    onChanged: (o) => setState(() => rule.operator = o ?? rule.operator),
+                    onChanged: (o) =>
+                        setState(() => rule.operator = o ?? rule.operator),
                   ),
                 ),
                 if (rule.operator.needsValue) ...[

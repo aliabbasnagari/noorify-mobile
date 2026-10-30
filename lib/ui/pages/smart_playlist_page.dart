@@ -22,7 +22,9 @@ class SmartPlaylistPage extends StatelessWidget {
     final playlist = context.watch<SmartPlaylistStore>().byId(playlistId);
     if (playlist == null) {
       // Deleted while open.
-      return Scaffold(appBar: AppBar(), body: const Center(child: Text('Playlist removed')));
+      return Scaffold(
+          appBar: AppBar(),
+          body: const Center(child: Text('Playlist removed')));
     }
     final sync = context.watch<SyncController>();
     final downloads = context.read<DownloadController>();
@@ -62,7 +64,10 @@ class SmartPlaylistPage extends StatelessWidget {
                           children: [
                             Expanded(
                               child: FilledButton.icon(
-                                onPressed: songs.isEmpty ? null : () => player.playSongs(songs),
+                                onPressed: songs.isEmpty
+                                    ? null
+                                    : () => player.playSongs(songs,
+                                        source: playlist.title),
                                 icon: const Icon(Icons.play_arrow),
                                 label: const Text('Play'),
                               ),
@@ -72,7 +77,8 @@ class SmartPlaylistPage extends StatelessWidget {
                               child: FilledButton.tonalIcon(
                                 onPressed: songs.isEmpty
                                     ? null
-                                    : () => player.playSongs(songs, shuffle: true),
+                                    : () => player.playSongs(songs,
+                                        shuffle: true, source: playlist.title),
                                 icon: const Icon(Icons.shuffle),
                                 label: const Text('Shuffle'),
                               ),
@@ -80,7 +86,9 @@ class SmartPlaylistPage extends StatelessWidget {
                             IconButton(
                               tooltip: 'Download all',
                               icon: const Icon(Icons.download_outlined),
-                              onPressed: songs.isEmpty ? null : () => downloads.downloadSongs(songs),
+                              onPressed: songs.isEmpty
+                                  ? null
+                                  : () => downloads.downloadSongs(songs),
                             ),
                           ],
                         ),
@@ -91,7 +99,8 @@ class SmartPlaylistPage extends StatelessWidget {
                 final index = i - 1;
                 return SongTile(
                   song: songs[index],
-                  onTap: () => player.playSongs(songs, index: index),
+                  onTap: () => player.playSongs(songs,
+                      index: index, source: playlist.title),
                 );
               },
             ),

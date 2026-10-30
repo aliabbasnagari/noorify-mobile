@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../settings/settings_models.dart';
 import '../../state/download_controller.dart';
-import '../../state/session_controller.dart';
 import '../../state/settings_controller.dart';
 import '../../state/sync_controller.dart';
-import '../routing/app_routes.dart';
+import '../account/sign_out.dart';
 import '../routing/navigation.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -166,46 +164,11 @@ class SettingsPage extends StatelessWidget {
             title: const Text('Sign out'),
             subtitle: const Text(
                 'Removes downloads and the synced library from this device'),
-            onTap: () => _confirmSignOut(context),
+            onTap: () => confirmSignOut(context),
           ),
         ],
       ),
     );
-  }
-
-  /// Signing out wipes this account's local data: downloaded files and the
-  /// synced song cache. Playback stops when the session ends.
-  static Future<void> _confirmSignOut(BuildContext context) async {
-    final router = GoRouter.of(context);
-    final session = context.read<SessionController>();
-    final downloads = context.read<DownloadController>();
-    final sync = context.read<SyncController>();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text(
-          'Downloaded songs and the synced library will be removed from this '
-          'device.',
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Sign out')),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    // Wipe while the account's client is still attached, then end the session.
-    await downloads.clearAll();
-    await sync.clear();
-    await session.logout();
-    // Signing out re-runs the router's redirect, which would otherwise send
-    // the next sign-in back to this settings page.
-    router.go(AppRoutes.login);
   }
 
   static String _syncSummary(SyncController sync) {

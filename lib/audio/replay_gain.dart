@@ -8,7 +8,8 @@ import '../settings/settings_models.dart';
 /// Returns 0 when ReplayGain is off. Missing data falls back to the track's
 /// `fallbackGain` (OpenSubsonic) or 0 dB. Positive results are limited by the
 /// peak so boosting never clips.
-double replayGainDb(ReplayGainInfo? info, ReplayGainMode mode, double preAmpDb) {
+double replayGainDb(
+    ReplayGainInfo? info, ReplayGainMode mode, double preAmpDb) {
   if (mode == ReplayGainMode.off) return 0;
   if (info == null) return preAmpDb;
 

@@ -23,7 +23,8 @@ class PlayTracker {
 
   /// Feed every position update. Returns true exactly once per play, when the
   /// threshold is crossed.
-  bool onPosition(int positionMs, {required int? durationMs, required bool playing}) {
+  bool onPosition(int positionMs,
+      {required int? durationMs, required bool playing}) {
     final last = _lastPositionMs;
     _lastPositionMs = positionMs;
     if (last == null) return false;

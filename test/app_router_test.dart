@@ -1,89 +1,14 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:noorify/state/download_controller.dart';
-import 'package:noorify/state/player_controller.dart';
-import 'package:noorify/state/playlists_revision.dart';
-import 'package:noorify/state/session_controller.dart';
-import 'package:noorify/state/settings_controller.dart';
-import 'package:noorify/state/smart_playlist_store.dart';
-import 'package:noorify/state/star_controller.dart';
-import 'package:noorify/subsonic/subsonic_client.dart';
 import 'package:noorify/ui/routing/app_router.dart';
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import 'support/fake_audio_player.dart';
+import 'support/test_app.dart';
 
 /// Runs the real router with the real pages against a fake server: sign-in
 /// gating, deep links, and opening pages inside the tab they were reached from.
 void main() {
-  const savedLogin = {
-    'server_url': 'https://music.example.com',
-    'server_user': 'alice',
-    'server_pass': 'sesame',
-  };
-
-  late SessionController session;
-  late PlayerController player;
-
-  http.Response ok(Map<String, dynamic> body) => http.Response(
-        jsonEncode({
-          'subsonic-response': {'status': 'ok', ...body},
-        }),
-        200,
-      );
-
-  /// A server with one album, one song and one playlist.
-  http.Response serve(http.Request request) {
-    switch (request.url.pathSegments.last) {
-      case 'getAlbumList2.view':
-        return ok({
-          'albumList2': {
-            'album': [
-              {
-                'id': 'al1',
-                'name': 'Test Album',
-                'artist': 'Test Artist',
-                'songCount': 1,
-              },
-            ],
-          },
-        });
-      case 'getAlbum.view':
-        return ok({
-          'album': {
-            'id': 'al1',
-            'name': 'Test Album',
-            'artist': 'Test Artist',
-            'songCount': 1,
-            'duration': 60,
-            'song': [
-              {'id': 's1', 'title': 'First Song', 'duration': 60, 'track': 1},
-            ],
-          },
-        });
-      case 'getPlaylists.view':
-        return ok({
-          'playlists': {
-            'playlist': [
-              {
-                'id': 'p1',
-                'name': 'Road trip',
-                'songCount': 3,
-                'duration': 100
-              },
-            ],
-          },
-        });
-      default:
-        return ok({});
-    }
-  }
+  late TestApp app;
 
   Future<void> pumpApp(
     WidgetTester tester, {
@@ -94,38 +19,13 @@ void main() {
     tester.view.physicalSize = const Size(390, 844);
     addTearDown(tester.view.reset);
 
-    FlutterSecureStorage.setMockInitialValues({...stored});
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-
-    session = SessionController(
-      storage: const FlutterSecureStorage(),
-      clientFactory: (config) =>
-          SubsonicClient(config, httpClient: MockClient((r) async => serve(r))),
-    );
-    player = PlayerController(
-      playerFactory: ({audioPipeline}) => FakeAudioPlayer(),
-    );
-    addTearDown(player.dispose);
-    if (restoreFirst) await session.restore();
-
-    final router = buildAppRouter(session: session);
+    app = await TestApp.create(stored: stored, restore: restoreFirst);
+    addTearDown(app.dispose);
+    final router = buildAppRouter(session: app.session);
     addTearDown(router.dispose);
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<SessionController>.value(value: session),
-          ChangeNotifierProvider(create: (_) => SettingsController(prefs)),
-          ChangeNotifierProvider(create: (_) => PlaylistsRevision()),
-          ChangeNotifierProvider(create: (_) => SmartPlaylistStore(prefs)),
-          ChangeNotifierProvider(create: (_) => StarController()),
-          // Never attached to a client in these tests, so it touches no files.
-          ChangeNotifierProvider(create: (_) => DownloadController()),
-          ChangeNotifierProvider<PlayerController>.value(value: player),
-        ],
-        child: MaterialApp.router(routerConfig: router),
-      ),
+      app.providers(MaterialApp.router(routerConfig: router)),
     );
     // The loading page's spinner never stops animating, so it can't settle.
     if (restoreFirst) {
@@ -188,6 +88,17 @@ void main() {
     expect(find.text('First Song'), findsNothing);
   });
 
+  testWidgets('opening an item records it in the recents history',
+      (tester) async {
+    await pumpApp(tester);
+    expect(app.recents.openedAt('album:al1'), isNull);
+
+    await tester.tap(find.text('Test Album').first);
+    await tester.pumpAndSettle();
+
+    expect(app.recents.openedAt('album:al1'), isNotNull);
+  });
+
   testWidgets('a playlist opens inside the Library tab with its name',
       (tester) async {
     await pumpApp(tester);
@@ -220,7 +131,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.text('First Song'), findsNothing);
 
-    await session.restore();
+    await app.session.restore();
     await tester.pumpAndSettle();
 
     expect(currentPath(tester), '/search/album/al1');
@@ -233,7 +144,7 @@ void main() {
     await pumpApp(tester, stored: const {});
     expect(loginText, findsOneWidget);
 
-    await session.login('music.example.com', 'alice', 'sesame');
+    await app.session.login('music.example.com', 'alice', 'sesame');
     await tester.pumpAndSettle();
 
     expect(currentPath(tester), '/library/album/al1');
@@ -244,7 +155,7 @@ void main() {
     await pumpApp(tester);
     expect(find.byType(NavigationBar), findsOneWidget);
 
-    await session.logout();
+    await app.session.logout();
     await tester.pumpAndSettle();
 
     expect(loginText, findsOneWidget);

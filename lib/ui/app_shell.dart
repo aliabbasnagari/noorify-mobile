@@ -6,8 +6,16 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'package:provider/provider.dart';
+
+import '../state/settings_controller.dart';
 import 'adaptive/window_class.dart';
 import 'routing/app_routes.dart';
+import 'shell/library_entries.dart';
+import 'shell/library_sidebar.dart';
+import 'shell/player_bar.dart';
+import 'shell/queue_panel.dart';
+import 'shell/top_bar.dart';
 import 'widgets/create_sheet.dart';
 import 'widgets/mini_player.dart';
 import 'widgets/playback_shortcuts.dart';
@@ -18,12 +26,15 @@ import 'widgets/playback_shortcuts.dart';
 ///
 /// * compact: page, then mini player, then a bottom navigation bar.
 /// * medium: a navigation rail beside the page, mini player underneath.
-/// * expanded: as medium with the rail extended to show labels. The top bar,
-///   library sidebar, queue panel and player bar of the desktop layout build
-///   on this.
+/// * expanded (desktop, web, landscape tablets): a top bar with home and
+///   search, a library sidebar, the page in a rounded panel, an optional queue
+///   panel on the right and a full player bar along the bottom.
 ///
-/// The destinations are Home, Search, Your Library and Create. Create is an
-/// action (it opens the Create menu), not a page.
+/// Compact and medium have four destinations: Home, Search, Your Library and
+/// Create (an action that opens the Create menu, not a page). Expanded has
+/// none of its own: Home and search are in the top bar and the library is the
+/// sidebar, but the same three tabs sit underneath, so resizing keeps the
+/// user's place.
 class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
@@ -89,7 +100,8 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  void _openSettings() => context.push(AppRoutes.branchPath(_index, 'settings'));
+  void _openSettings() =>
+      context.push(AppRoutes.branchPath(_index, 'settings'));
 
   @override
   Widget build(BuildContext context) {
@@ -105,9 +117,11 @@ class _AppShellState extends State<AppShell> {
         onPopInvokedWithResult: (didPop, result) {
           if (!didPop) unawaited(_handleBack());
         },
-        child: window.isCompact
-            ? _compact(content)
-            : _wide(content, extended: window.isExpanded),
+        child: switch (window) {
+          WindowClass.compact => _compact(content),
+          WindowClass.medium => _medium(content),
+          WindowClass.expanded => _expanded(content),
+        },
       ),
     );
   }
@@ -146,7 +160,7 @@ class _AppShellState extends State<AppShell> {
         ),
       );
 
-  Widget _wide(Widget content, {required bool extended}) => Scaffold(
+  Widget _medium(Widget content) => Scaffold(
         body: Column(
           children: [
             Expanded(
@@ -155,10 +169,7 @@ class _AppShellState extends State<AppShell> {
                   NavigationRail(
                     selectedIndex: _index,
                     onDestinationSelected: _select,
-                    extended: extended,
-                    labelType: extended
-                        ? NavigationRailLabelType.none
-                        : NavigationRailLabelType.all,
+                    labelType: NavigationRailLabelType.all,
                     trailing: Expanded(
                       child: Align(
                         alignment: Alignment.bottomCenter,
@@ -202,4 +213,92 @@ class _AppShellState extends State<AppShell> {
           ],
         ),
       );
+
+  /// A sidebar entry was chosen: browse to it from Home, replacing whatever
+  /// page was open there (the sidebar is navigation, not a drill-down).
+  void _openEntry(LibraryEntry entry) =>
+      context.go(AppRoutes.branchPath(0, entry.detailPath));
+
+  Widget _expanded(Widget content) {
+    final shell = context.watch<SettingsController>().shell;
+    final windowWidth = MediaQuery.sizeOf(context).width;
+    final sidebarWidth = shell.sidebarCollapsed
+        ? LibrarySidebar.collapsedWidth
+        : LibrarySidebar.expandedWidth(windowWidth);
+
+    return Scaffold(
+      body: Column(
+        children: [
+          AppTopBar(navigationShell: widget.navigationShell),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: sidebarWidth,
+                    child: _Panel(
+                      child: LibrarySidebar(
+                        branchIndex: _index,
+                        onOpen: _openEntry,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: _Panel(inset: true, child: content)),
+                  if (shell.queuePanelOpen) ...[
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 340,
+                      child: _Panel(
+                        child: QueuePanel(
+                          onFindSomething: () => widget.navigationShell
+                              .goBranch(1, initialLocation: true),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const PlayerBar(),
+        ],
+      ),
+    );
+  }
+}
+
+/// A rounded surface that frames one column of the expanded layout.
+///
+/// With [inset] the pages shown inside take the panel's colour for their own
+/// background and app bar, instead of painting the page colour over it.
+class _Panel extends StatelessWidget {
+  const _Panel({required this.child, this.inset = false});
+
+  final Widget child;
+  final bool inset;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final body = inset
+        ? Theme(
+            data: theme.copyWith(
+              scaffoldBackgroundColor: scheme.surfaceContainer,
+              appBarTheme: theme.appBarTheme.copyWith(
+                backgroundColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                scrolledUnderElevation: 0,
+              ),
+            ),
+            child: child,
+          )
+        : child;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Material(color: scheme.surfaceContainer, child: body),
+    );
+  }
 }

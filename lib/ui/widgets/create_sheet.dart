@@ -40,7 +40,13 @@ Future<void> showCreateSheet(BuildContext context,
     ),
   );
   if (action == null || !context.mounted) return;
+  await _run(context, action, branchIndex);
+}
 
+enum _CreateAction { playlist, smartPlaylist }
+
+Future<void> _run(
+    BuildContext context, _CreateAction action, int branchIndex) async {
   switch (action) {
     case _CreateAction.smartPlaylist:
       await context.push<void>(AppRoutes.branchPath(branchIndex, 'smart/new'));
@@ -49,7 +55,39 @@ Future<void> showCreateSheet(BuildContext context,
   }
 }
 
-enum _CreateAction { playlist, smartPlaylist }
+/// The same two choices as [showCreateSheet], as a "+" button with a popup
+/// menu, for the wide layout where a bottom sheet would feel out of place.
+class CreateMenuButton extends StatelessWidget {
+  const CreateMenuButton({super.key, required this.branchIndex});
+
+  /// The tab a new smart playlist's editor opens in.
+  final int branchIndex;
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<_CreateAction>(
+        tooltip: 'Create',
+        icon: const Icon(Icons.add),
+        onSelected: (action) => _run(context, action, branchIndex),
+        itemBuilder: (_) => const [
+          PopupMenuItem(
+            value: _CreateAction.playlist,
+            child: ListTile(
+              leading: Icon(Icons.music_note_outlined),
+              title: Text('Playlist'),
+              subtitle: Text('Create a playlist with songs'),
+            ),
+          ),
+          PopupMenuItem(
+            value: _CreateAction.smartPlaylist,
+            child: ListTile(
+              leading: Icon(Icons.auto_awesome_outlined),
+              title: Text('Smart playlist'),
+              subtitle: Text('Fill a playlist from rules'),
+            ),
+          ),
+        ],
+      );
+}
 
 Future<void> _createPlaylist(BuildContext context) async {
   final client = context.read<SessionController>().client;

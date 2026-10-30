@@ -48,6 +48,7 @@ class SmartPlaylistStore extends ChangeNotifier {
 
   Future<void> _save() async {
     notifyListeners();
-    await _prefs.setString(_key, jsonEncode([for (final p in _items) p.toJson()]));
+    await _prefs.setString(
+        _key, jsonEncode([for (final p in _items) p.toJson()]));
   }
 }
