@@ -1,0 +1,53 @@
+name: noorify
+description: A Subsonic / OpenSubsonic music player inspired by the feature set of Symfonium.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.41.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.2
+  http: ^1.2.2
+  crypto: ^3.0.5
+  just_audio: ^0.9.40
+  cached_network_image: ^3.4.1
+  flutter_secure_storage: ^9.2.2
+  rxdart: ^0.28.0
+  shared_preferences: ^2.3.2
+  path_provider: ^2.1.4
+  drift: ^2.35.2
+  drift_flutter: ^0.3.1
+  audio_service: ^0.18.19
+  # Pinned to 8.x: 9.0.0 depends on the `material_ui` package, whose
+  # `TextTheme` is a distinct, incompatible type from this Flutter SDK's own
+  # `package:flutter/material.dart` TextTheme (a packaging split this SDK
+  # version hasn't adopted yet) and fails to type-check against it. Versions
+  # below 8.0.0 (tried: 6.2.1) fail web (dart2js) compilation instead: they
+  # use `FontWeight` as a literal key in a top-level `const` map, and
+  # `FontWeight` overrides `operator ==` non-trivially, which dart2js's
+  # const-map canonicalization rejects as "not a primitive operator ==" —
+  # this doesn't show up in `flutter analyze` or `flutter test` (VM-only),
+  # only in an actual `flutter build web`/`flutter run -d chrome`.
+  google_fonts: ^8.0.0
+  palette_generator: ^0.3.3+7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  drift_dev: ^2.35.1
+  build_runner: ^2.16.2
+  sqlite3: ^3.7.1
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+
+flutter:
+  uses-material-design: true
