@@ -9,6 +9,7 @@ import '../widgets/song_tile.dart' show promptForText;
 import 'album_list_page.dart';
 import 'artist_list_page.dart';
 import 'downloads_page.dart';
+import 'favorites_page.dart';
 import 'playlist_page.dart';
 import 'smart_playlists_view.dart';
 import 'song_list_page.dart';
@@ -87,6 +88,11 @@ class _LibraryTabState extends State<LibraryTab>
                   icon: Icons.music_note_outlined,
                   label: 'Songs',
                   onTap: () => _push(const SongListPage()),
+                ),
+                _LibraryTile(
+                  icon: Icons.favorite_border,
+                  label: 'Favorites',
+                  onTap: () => _push(const FavoritesPage()),
                 ),
                 _LibraryTile(
                   icon: Icons.download_for_offline_outlined,

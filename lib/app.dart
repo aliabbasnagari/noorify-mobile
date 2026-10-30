@@ -12,7 +12,7 @@ import 'ui/login_page.dart';
 const _spotifyGreen = Color(0xFF1DB954);
 
 /// Explicit, hand-authored schemes matching `ui/`'s Spotify-exact palette
-/// (see documentation/07-UI-DESIGN-SYSTEM.md §2.2) — `ColorScheme.fromSeed`
+/// (see reference-documents/07-UI-DESIGN-SYSTEM.md §2.2) — `ColorScheme.fromSeed`
 /// can't reproduce these, since Spotify's dark surfaces are flat near-black
 /// steps rather than a chroma-derived tonal ramp.
 final _darkScheme = ColorScheme.dark(

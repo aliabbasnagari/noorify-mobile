@@ -3,7 +3,9 @@ import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
 import 'package:rxdart/rxdart.dart';
 
+import '../../models/models.dart';
 import '../../state/player_controller.dart';
+import '../../state/star_controller.dart';
 import '../util.dart';
 import '../widgets/art_hero_background.dart';
 import '../widgets/cover_art.dart';
@@ -43,6 +45,7 @@ class NowPlayingPage extends StatelessWidget {
             maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
         actions: [
+          _FavoriteButton(song: song),
           IconButton(
             tooltip: 'Queue',
             icon: const Icon(Icons.queue_music),
@@ -134,6 +137,35 @@ class NowPlayingPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _FavoriteButton extends StatelessWidget {
+  const _FavoriteButton({required this.song});
+
+  final Song song;
+
+  @override
+  Widget build(BuildContext context) {
+    final starred =
+        context.select<StarController, bool>((s) => s.isStarred(song));
+    return IconButton(
+      tooltip: starred ? 'Remove from favorites' : 'Add to favorites',
+      icon: Icon(
+        starred ? Icons.favorite : Icons.favorite_border,
+        color: starred ? Theme.of(context).colorScheme.primary : null,
+      ),
+      onPressed: () async {
+        final messenger = ScaffoldMessenger.of(context);
+        try {
+          await context.read<StarController>().toggle(song);
+        } on Object catch (e) {
+          messenger
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(content: Text('$e')));
+        }
+      },
     );
   }
 }

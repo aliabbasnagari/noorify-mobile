@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -5,14 +7,28 @@ import '../subsonic/subsonic_client.dart';
 
 /// Owns the server login and exposes the active [SubsonicClient].
 class SessionController extends ChangeNotifier {
-  SessionController({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+  SessionController({
+    FlutterSecureStorage? storage,
+    SubsonicClient Function(ServerConfig config)? clientFactory,
+  })  : _storage = storage ??
+            // The data-protection keychain needs a keychain-access-groups
+            // entitlement, which unsigned/ad-hoc macOS builds don't have.
+            const FlutterSecureStorage(
+              mOptions: MacOsOptions(useDataProtectionKeyChain: false),
+            ),
+        _clientFactory = clientFactory ?? SubsonicClient.new;
 
   static const _kUrl = 'server_url';
   static const _kUser = 'server_user';
   static const _kPass = 'server_pass';
 
+  /// Subsonic error codes that mean the saved credentials are no longer
+  /// usable: 40 wrong username/password, 41 token auth unsupported for this
+  /// user, 44 invalid API key.
+  static const _credentialErrorCodes = {40, 41, 44};
+
   final FlutterSecureStorage _storage;
+  final SubsonicClient Function(ServerConfig config) _clientFactory;
 
   SubsonicClient? _client;
   bool _restoring = true;
@@ -21,31 +37,47 @@ class SessionController extends ChangeNotifier {
   bool get isRestoring => _restoring;
   bool get isLoggedIn => _client != null;
 
-  /// Tries to sign in with the credentials saved by a previous session.
+  /// Signs in with the credentials saved by a previous session.
+  ///
+  /// The session is restored from storage without waiting on the network, so
+  /// the app still opens (and downloaded songs still play) while offline. The
+  /// server is checked in the background and the session is dropped only if it
+  /// explicitly rejects the saved credentials.
   Future<void> restore() async {
     try {
       final url = await _storage.read(key: _kUrl);
       final user = await _storage.read(key: _kUser);
       final pass = await _storage.read(key: _kPass);
       if (url != null && user != null && pass != null) {
-        final client = SubsonicClient(
+        _client = _clientFactory(
           ServerConfig(url: url, username: user, password: pass),
         );
-        await client.ping();
-        _client = client;
       }
     } on Object {
-      // Offline or bad stored credentials: fall back to the login screen.
+      // Unreadable secure storage: fall back to the login screen.
       _client = null;
     }
     _restoring = false;
     notifyListeners();
+    final restored = _client;
+    if (restored != null) unawaited(_verify(restored));
+  }
+
+  Future<void> _verify(SubsonicClient client) async {
+    try {
+      await client.ping();
+    } on SubsonicException catch (e) {
+      if (!_credentialErrorCodes.contains(e.code)) return;
+      if (identical(client, _client)) await logout();
+    } on Object {
+      // Offline or server down: keep the session.
+    }
   }
 
   /// Validates the credentials against the server, then persists them.
   /// Throws [SubsonicException] on failure.
   Future<void> login(String url, String username, String password) async {
-    final client = SubsonicClient(
+    final client = _clientFactory(
       ServerConfig(
         url: normalizeUrl(url),
         username: username.trim(),

@@ -6,7 +6,7 @@ import '../pages/now_playing_page.dart';
 import 'cover_art.dart';
 
 /// Compact now-playing bar shown above the navigation bar, matching
-/// `ui/`'s `player-bar-mobile` exactly (see documentation/07 §4.2 and
+/// `ui/`'s `player-bar-mobile` exactly (see reference-documents/07 §4.2 and
 /// `ui/src/components/layout/player-bar.tsx`): a thin progress line,
 /// continuously-spinning circular art that freezes on pause, and a single
 /// filled green play/pause button — no previous/next buttons at phone width.

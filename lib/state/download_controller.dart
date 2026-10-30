@@ -219,6 +219,11 @@ class DownloadController extends ChangeNotifier {
       // the whole attempt (there is no resume support) before giving up.
       final received =
           await withRetry(() => _attemptDownload(client, song, part));
+      if (!identical(_active[song.id], job)) {
+        // Cancelled by clearAll() while in flight: discard the result.
+        if (await part.exists()) await part.delete();
+        return;
+      }
       await part.rename('${dir.path}/$fileName');
       _done[song.id] = DownloadedSong(
         song: song,
@@ -233,7 +238,9 @@ class DownloadController extends ChangeNotifier {
       if (await part.exists()) await part.delete();
     } finally {
       _progress.remove(song.id);
-      _active.remove(song.id);
+      // A newer job for the same song may have replaced this one after a
+      // clearAll(); only remove our own entry.
+      if (identical(_active[song.id], job)) _active.remove(song.id);
     }
   }
 
@@ -297,11 +304,15 @@ class DownloadController extends ChangeNotifier {
     await _save();
   }
 
+  /// Removes every download and offline collection. Downloads still in flight
+  /// are abandoned: their result is discarded when they finish.
   Future<void> clearAll() async {
     final all = _done.values.toList();
     _done.clear();
     _collections.clear();
     _pending.clear();
+    _active.clear();
+    _failed.clear();
     notifyListeners();
     for (final d in all) {
       await _deleteFile(d);
@@ -359,6 +370,8 @@ class DownloadController extends ChangeNotifier {
         final songs = c.type == 'album'
             ? (await client.getAlbum(c.id)).songs
             : (await client.getPlaylist(c.id)).songs;
+        // Removed (or everything cleared) while the request was in flight.
+        if (!_collections.containsKey(c.key)) continue;
         await _dropSource(c.key, keep: {for (final s in songs) s.id});
         await downloadSongs(songs, source: c.key);
       } on Object {

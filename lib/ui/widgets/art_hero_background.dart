@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:palette_generator/palette_generator.dart';
 
 /// Spotify-style tinted gradient behind the Now Playing art
-/// (documentation/07-UI-DESIGN-SYSTEM.md §4.3, ported from
+/// (reference-documents/07-UI-DESIGN-SYSTEM.md §4.3, ported from
 /// `ui/src/components/library/art-hero-background.tsx`): the dominant,
 /// vibrancy-weighted color extracted from the cover art, fading down to the
 /// theme background. Never jank on navigation — a neutral gradient is

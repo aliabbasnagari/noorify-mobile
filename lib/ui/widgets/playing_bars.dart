@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 /// Animated 3-bar "now playing" indicator, swapped in for a track number
-/// when that row is the current track (documentation/07-UI-DESIGN-SYSTEM.md
+/// when that row is the current track (reference-documents/07-UI-DESIGN-SYSTEM.md
 /// §5). Bars continuously rise and fall while [playing] is true, staggered
 /// so they don't move in lockstep, and freeze at a low height when false.
 class PlayingBars extends StatefulWidget {

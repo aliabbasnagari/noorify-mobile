@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../audio/equalizer_presets.dart';
+import '../audio/play_tracker.dart';
 import '../audio/replay_gain.dart';
 import '../models/models.dart';
 import '../settings/settings_models.dart';
@@ -85,6 +86,9 @@ class PlayerController extends BaseAudioHandler
   ConcatenatingAudioSource _source = ConcatenatingAudioSource(children: []);
   final List<Song> _queue = [];
   int? _index;
+
+  /// Decides when the current track has been heard enough to report a play.
+  final PlayTracker _plays = PlayTracker();
 
   double _fade = 1;
   double _lastVolume = -1;
@@ -283,6 +287,7 @@ class PlayerController extends BaseAudioHandler
       await _overlapPlayer?.stop();
     }
     await _player.stop();
+    _plays.reset();
     _queue.clear();
     _source = ConcatenatingAudioSource(children: []);
     _index = null;
@@ -375,6 +380,13 @@ class PlayerController extends BaseAudioHandler
     final posMs = position.inMilliseconds;
     final durMs = _player.duration?.inMilliseconds ??
         ((current?.duration ?? 0) > 0 ? current!.duration * 1000 : null);
+
+    final song = current;
+    if (song != null &&
+        _plays.onPosition(posMs, durationMs: durMs, playing: _player.playing)) {
+      // Best effort: reporting a play must never disturb playback.
+      unawaited(_client?.scrobble(song.id).catchError((Object _) {}));
+    }
 
     if (_crossfading) {
       _tickCrossfade(posMs, durMs);
@@ -497,6 +509,7 @@ class PlayerController extends BaseAudioHandler
   void _onIndexChanged(int? i) {
     final wasCrossfading = _crossfading;
     _index = i;
+    _plays.reset();
     final song = current;
     mediaItem.add(song == null ? null : _toMediaItem(song));
     _broadcastPlaybackState();

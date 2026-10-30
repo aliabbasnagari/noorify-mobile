@@ -34,6 +34,11 @@ dependencies:
   # only in an actual `flutter build web`/`flutter run -d chrome`.
   google_fonts: ^8.0.0
   palette_generator: ^0.3.3+7
+  just_audio_media_kit: ^2.1.0
+  media_kit_libs_windows_audio: ^1.0.9
+  media_kit_libs_linux: ^1.2.1
+  audio_service_mpris: ^0.2.1
+  audio_service_win: ^0.0.3
 
 dev_dependencies:
   flutter_test:

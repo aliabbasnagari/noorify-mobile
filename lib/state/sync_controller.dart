@@ -24,6 +24,10 @@ class SyncController extends ChangeNotifier {
   Object? _error;
   DateTime? _lastSync;
 
+  /// Bumped by [clear] so a sync that is still running when the account's
+  /// data is wiped stops instead of writing it back.
+  int _epoch = 0;
+
   List<Song> get songs => _songs;
   bool get isSyncing => _syncing;
   Object? get error => _error;
@@ -59,11 +63,25 @@ class SyncController extends ChangeNotifier {
     }
   }
 
+  /// Drops the cached song list for the current account, in memory and on
+  /// disk (used on sign-out). Any sync in progress is abandoned.
+  Future<void> clear() async {
+    final owner = _owner;
+    _epoch++;
+    _songs = const [];
+    _lastSync = null;
+    _error = null;
+    notifyListeners();
+    if (owner != null) await _db.clearOwner(owner);
+  }
+
   /// Downloads the whole song list. Safe to call repeatedly.
   Future<void> sync() async {
     final client = _client;
     final owner = _owner;
     if (client == null || owner == null || _syncing) return;
+    final epoch = _epoch;
+    bool stale() => !identical(client, _client) || epoch != _epoch;
     _syncing = true;
     _error = null;
     notifyListeners();
@@ -90,16 +108,24 @@ class SyncController extends ChangeNotifier {
         // looping forever.
         if (page.length < _pageSize || byId.length == before) break;
         offset += _pageSize;
-        if (!identical(client, _client)) return;
+        if (stale()) return;
         await _db.upsertSongs(owner, page);
+        if (stale()) return;
         _songs = byId.values.toList();
         notifyListeners();
       }
-      if (!identical(client, _client)) return;
-      _songs = byId.values.toList();
-      _lastSync = DateTime.now();
-      await _db.replaceSongs(owner, _songs);
-      await _db.setLastSync(owner, _lastSync!);
+      if (stale()) return;
+      final songs = byId.values.toList();
+      final syncedAt = DateTime.now();
+      await _db.replaceSongs(owner, songs);
+      await _db.setLastSync(owner, syncedAt);
+      if (stale()) {
+        // Wiped while the final write was in flight: undo it.
+        await _db.clearOwner(owner);
+        return;
+      }
+      _songs = songs;
+      _lastSync = syncedAt;
     } on Object catch (e) {
       _error = e;
     } finally {

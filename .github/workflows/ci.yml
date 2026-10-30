@@ -1,0 +1,58 @@
+name: CI
+
+# Runs on every pull request and on pushes to master. The release workflow
+# (pipeline.yml) only runs on version tags, so this is what catches problems
+# before a tag is cut.
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Analyze & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install native test dependencies
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+
+      - run: flutter pub get
+
+      - run: flutter analyze
+
+      - run: flutter test
+
+  # `flutter analyze` and `flutter test` run on the Dart VM and don't catch
+  # code that fails to compile for a specific target (see
+  # reference-documents/04-BUILD-DEVELOPMENT-GUIDE.md §6), so build the web
+  # target too. This is a compile check; web playback and storage are not
+  # supported yet.
+  build-web:
+    name: Build web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - run: flutter build web --release

@@ -170,15 +170,46 @@ class SettingsPage extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Sign out'),
-            onTap: () async {
-              final navigator = Navigator.of(context);
-              await context.read<SessionController>().logout();
-              navigator.popUntil((r) => r.isFirst);
-            },
+            subtitle: const Text(
+                'Removes downloads and the synced library from this device'),
+            onTap: () => _confirmSignOut(context),
           ),
         ],
       ),
     );
+  }
+
+  /// Signing out wipes this account's local data: downloaded files and the
+  /// synced song cache. Playback stops when the session ends.
+  static Future<void> _confirmSignOut(BuildContext context) async {
+    final navigator = Navigator.of(context);
+    final session = context.read<SessionController>();
+    final downloads = context.read<DownloadController>();
+    final sync = context.read<SyncController>();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text(
+          'Downloaded songs and the synced library will be removed from this '
+          'device.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Sign out')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    // Wipe while the account's client is still attached, then end the session.
+    await downloads.clearAll();
+    await sync.clear();
+    await session.logout();
+    navigator.popUntil((r) => r.isFirst);
   }
 
   static String _syncSummary(SyncController sync) {

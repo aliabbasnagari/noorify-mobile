@@ -5,6 +5,7 @@ import '../../models/models.dart';
 import '../../state/download_controller.dart';
 import '../../state/player_controller.dart';
 import '../../state/session_controller.dart';
+import '../../state/star_controller.dart';
 import '../util.dart';
 import 'cover_art.dart';
 import 'playing_bars.dart';
@@ -13,6 +14,7 @@ enum _SongAction {
   playNext,
   addToQueue,
   addToPlaylist,
+  toggleStar,
   download,
   removeDownload
 }
@@ -43,6 +45,8 @@ class SongTile extends StatelessWidget {
         context.select<DownloadController, ({bool done, double? progress})>(
       (d) => (done: d.isDownloaded(song.id), progress: d.progress(song.id)),
     );
+    final starred =
+        context.select<StarController, bool>((s) => s.isStarred(song));
     final isCurrent = current == song.id;
     final isPlaying =
         isCurrent && context.select<PlayerController, bool>((p) => p.isPlaying);
@@ -96,6 +100,10 @@ class SongTile extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (starred) ...[
+            Icon(Icons.favorite, size: 16, color: scheme.primary),
+            const SizedBox(width: 8),
+          ],
           if (status != null) ...[status, const SizedBox(width: 8)],
           Text(formatDuration(song.duration)),
           PopupMenuButton<Object>(
@@ -114,6 +122,11 @@ class SongTile extends StatelessWidget {
               const PopupMenuItem(
                 value: _SongAction.addToPlaylist,
                 child: Text('Add to playlist…'),
+              ),
+              PopupMenuItem(
+                value: _SongAction.toggleStar,
+                child: Text(
+                    starred ? 'Remove from favorites' : 'Add to favorites'),
               ),
               if (dl.done)
                 const PopupMenuItem(
@@ -142,6 +155,15 @@ class SongTile extends StatelessWidget {
         await player.addToQueue(song);
       case _SongAction.addToPlaylist:
         await showAddToPlaylistSheet(context, [song]);
+      case _SongAction.toggleStar:
+        final messenger = ScaffoldMessenger.of(context);
+        try {
+          await context.read<StarController>().toggle(song);
+        } on Object catch (e) {
+          messenger
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(content: Text('$e')));
+        }
       case _SongAction.download:
         await downloads.downloadSongs([song]);
       case _SongAction.removeDownload:

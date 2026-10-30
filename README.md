@@ -67,6 +67,12 @@ If any stage fails, nothing is published. Tags containing a hyphen (e.g. `v0.2.0
 - **Android** release builds currently use the debug signing config (`android/app/build.gradle.kts`), so the APK installs but can't be published to the Play Store. Add a release keystore before distributing publicly.
 - **iOS** has no signing certificates configured in CI, so the IPA is unsigned. Distributing a signed build needs an Apple Developer certificate and provisioning profile added as repository secrets.
 - **macOS** builds are unsigned and not notarized.
+- **Linux** playback uses libmpv (through `just_audio_media_kit`), which is not bundled in the AppImage or tarball. Install it first (`sudo apt install libmpv2`, or `libmpv-dev` to build). Windows bundles its own mpv library.
+- **Web** is only compile-checked in CI. Playback, the local database and downloads are not supported there yet.
+
+### Continuous integration
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `flutter analyze`, `flutter test` and a web build on every pull request and on pushes to `master`. The release pipeline also runs `flutter analyze` before building.
 
 ### Building locally
 
@@ -75,5 +81,5 @@ flutter build apk --release                  # Android
 flutter build ios --release --no-codesign    # iOS (macOS host)
 flutter build macos --release                # macOS (macOS host)
 flutter build windows --release              # Windows (Windows host)
-flutter build linux --release                # Linux (Linux host; needs GTK, libsecret, jsoncpp dev packages)
+flutter build linux --release                # Linux (Linux host; needs GTK, libsecret, jsoncpp, libmpv dev packages)
 ```
