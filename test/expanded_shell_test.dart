@@ -13,7 +13,7 @@ void main() {
   late TestApp app;
 
   Future<void> pumpDesktop(WidgetTester tester,
-      {Size size = const Size(1440, 900)}) async {
+      {Size size = const Size(1440, 1100)}) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = size;
     addTearDown(tester.view.reset);
@@ -111,6 +111,7 @@ void main() {
       // Alphabetically "Beck" comes before "Test Album".
       expect(rowTop(tester, 'Beck'), lessThan(rowTop(tester, 'Test Album')));
 
+      await tester.ensureVisible(inSidebar('Test Album'));
       await tester.tap(inSidebar('Test Album'));
       await tester.pumpAndSettle();
 
@@ -124,6 +125,7 @@ void main() {
     testWidgets('sorting alphabetically ignores the opened order',
         (tester) async {
       await pumpDesktop(tester);
+      await tester.ensureVisible(inSidebar('Test Album'));
       await tester.tap(inSidebar('Test Album'));
       await tester.pumpAndSettle();
 
@@ -233,7 +235,8 @@ void main() {
 
       expect(currentUri(tester).path, '/search');
       expect(app.searchQuery.text, 'first');
-      expect(find.text('First Song'), findsOneWidget);
+      // The song is both the top result and a row in the list.
+      expect(find.text('First Song'), findsNWidgets(2));
     });
 
     testWidgets('clearing the field clears the results', (tester) async {
@@ -241,7 +244,8 @@ void main() {
       await tester.enterText(topSearchField, 'first');
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpAndSettle();
-      expect(find.text('First Song'), findsOneWidget);
+      // The song is both the top result and a row in the list.
+      expect(find.text('First Song'), findsNWidgets(2));
 
       await tester.tap(find.byTooltip('Clear'));
       await tester.pumpAndSettle();

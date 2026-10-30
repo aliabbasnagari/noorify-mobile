@@ -31,13 +31,28 @@ void main() {
 
   List<String> titles(List<LibraryEntry> l) => [for (final e in l) e.title];
 
+  /// The rows that are always first, in order.
+  const pinned = ['Favorites', 'Songs', 'Downloads', 'Smart playlists'];
+
   group('buildLibraryEntries', () {
-    test('always includes Favorites, even with nothing loaded', () {
+    test(
+        'always includes Favorites and the shortcuts, even with nothing loaded',
+        () {
       final empty = buildLibraryEntries();
 
-      expect(titles(empty), ['Favorites']);
-      expect(empty.single.pinned, isTrue);
-      expect(empty.single.kind, LibraryKind.favorites);
+      expect(titles(empty), pinned);
+      expect(empty.every((e) => e.pinned), isTrue);
+      expect(empty.first.kind, LibraryKind.favorites);
+      expect(
+          empty.skip(1).every((e) => e.kind == LibraryKind.shortcut), isTrue);
+    });
+
+    test('leaves out the Downloads shortcut where downloads are impossible',
+        () {
+      final web = buildLibraryEntries(includeDownloads: false);
+
+      expect(titles(web), ['Favorites', 'Songs', 'Smart playlists']);
+      expect(web.any((e) => e.id == LibraryEntry.shortcutDownloads), isFalse);
     });
 
     test('describes each kind in its subtitle', () {
@@ -50,6 +65,7 @@ void main() {
       expect(subtitleOf('Beck'), 'Artist');
       expect(subtitleOf('Odelay'), 'Album • Beck');
       expect(subtitleOf('Untitled'), 'Album');
+      expect(subtitleOf('Downloads'), 'Available offline');
     });
 
     test('keys line up with the recents and offline-collection keys', () {
@@ -57,6 +73,7 @@ void main() {
           entries.firstWhere((e) => e.title == title).key;
 
       expect(keyOf('Favorites'), 'favorites');
+      expect(keyOf('Songs'), 'shortcut:songs');
       expect(keyOf('Road trip'), 'playlist:p1');
       expect(keyOf('Jazz'), 'smart:s1');
       expect(keyOf('Beck'), 'artist:a1');
@@ -68,6 +85,9 @@ void main() {
           entries.firstWhere((e) => e.title == title).detailPath;
 
       expect(pathOf('Favorites'), 'favorites');
+      expect(pathOf('Songs'), 'songs');
+      expect(pathOf('Downloads'), 'downloads');
+      expect(pathOf('Smart playlists'), 'smart');
       expect(pathOf('Road trip'), 'playlist/p1?name=Road+trip');
       expect(pathOf('Jazz'), 'smart/s1');
       expect(pathOf('Beck'), 'artist/a1');
@@ -117,6 +137,17 @@ void main() {
       expect(titles(shown), ['Calm', 'Odelay']);
     });
 
+    test('the shortcuts only show when no filter is chosen', () {
+      for (final filter in LibraryFilter.values) {
+        final shown = visibleLibraryEntries(entries, filter: filter);
+        expect(titles(shown), isNot(contains('Songs')), reason: '$filter');
+        expect(titles(shown), isNot(contains('Downloads')), reason: '$filter');
+        expect(titles(shown), isNot(contains('Smart playlists')),
+            reason: '$filter');
+      }
+      expect(titles(visibleLibraryEntries(entries)), containsAll(pinned));
+    });
+
     test('search matches title or subtitle, ignoring case', () {
       expect(
           titles(visibleLibraryEntries(entries, query: 'ROAD')), ['Road trip']);
@@ -130,6 +161,11 @@ void main() {
           hasLength(entries.length));
     });
 
+    test('search can find a shortcut', () {
+      expect(titles(visibleLibraryEntries(entries, query: 'offline')),
+          ['Downloads']);
+    });
+
     test('filter and search combine', () {
       final shown = visibleLibraryEntries(entries,
           filter: LibraryFilter.albums, query: 'odel');
@@ -139,12 +175,12 @@ void main() {
   });
 
   group('visibleLibraryEntries sorting', () {
-    test('alphabetical ignores case, with Favorites pinned first', () {
+    test('alphabetical ignores case, with the pinned rows first', () {
       final shown =
           visibleLibraryEntries(entries, sort: LibrarySort.alphabetical);
 
       expect(titles(shown), [
-        'Favorites',
+        ...pinned,
         'abba',
         'Beck',
         'Calm',
@@ -163,7 +199,7 @@ void main() {
       );
 
       expect(titles(shown), [
-        'Favorites',
+        ...pinned,
         'Road trip', // 300
         'Beck', // 200
         'Odelay', // 100
@@ -174,15 +210,20 @@ void main() {
       ]);
     });
 
-    test('Favorites stays on top even when it is not the most recent', () {
+    test('pinned rows stay on top, in order, even when opened more recently',
+        () {
       final shown = visibleLibraryEntries(
         entries,
         sort: LibrarySort.recents,
-        opened: {'playlist:p2': 999, 'favorites': 1},
+        opened: {
+          'playlist:p2': 999,
+          'favorites': 1,
+          'shortcut:smart': 5000,
+        },
       );
 
-      expect(shown.first.title, 'Favorites');
-      expect(shown[1].title, 'Calm');
+      expect(titles(shown).take(4), pinned);
+      expect(shown[4].title, 'Calm');
     });
 
     test('recents with nothing opened falls back to A to Z', () {
@@ -199,7 +240,7 @@ void main() {
         opened: {'artist:a1': 50, 'artist:a2': 50},
       );
 
-      expect(titles(shown).sublist(1, 3), ['abba', 'Beck']);
+      expect(titles(shown).sublist(4, 6), ['abba', 'Beck']);
     });
   });
 }

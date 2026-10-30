@@ -6,6 +6,8 @@ import '../../state/download_controller.dart';
 import '../../state/settings_controller.dart';
 import '../../state/sync_controller.dart';
 import '../account/sign_out.dart';
+import '../adaptive/layout.dart';
+import '../adaptive/platform_caps.dart';
 import '../routing/navigation.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -17,13 +19,17 @@ class SettingsPage extends StatelessWidget {
     final p = settings.playback;
     final sync = context.watch<SyncController>();
     final downloads = context.watch<DownloadController>();
+    final caps = context.watch<PlatformCaps>();
 
     void update(PlaybackSettings Function(PlaybackSettings) change) =>
         settings.updatePlayback(change);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
+      // A settings list reads badly stretched across a wide window.
+      body: ContentFrame(
+        maxWidth: 720,
+        child: ListView(
         children: [
           const _Section('Appearance'),
           const ListTile(title: Text('Theme')),
@@ -117,19 +123,21 @@ class SettingsPage extends StatelessWidget {
             onChanged: (v) =>
                 update((c) => c.copyWith(crossfadeMs: (v * 1000).round())),
           ),
-          SwitchListTile(
-            title: const Text('Skip silence'),
-            subtitle: const Text('Android only'),
-            value: p.skipSilence,
-            onChanged: (v) => update((c) => c.copyWith(skipSilence: v)),
-          ),
-          ListTile(
-            leading: const Icon(Icons.graphic_eq),
-            title: const Text('Equalizer'),
-            subtitle: Text(p.eqEnabled ? 'On' : 'Off'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.openEqualizer(),
-          ),
+          // These two only exist where the platform has the audio effect.
+          if (caps.supportsSkipSilence)
+            SwitchListTile(
+              title: const Text('Skip silence'),
+              value: p.skipSilence,
+              onChanged: (v) => update((c) => c.copyWith(skipSilence: v)),
+            ),
+          if (caps.supportsEqualizer)
+            ListTile(
+              leading: const Icon(Icons.graphic_eq),
+              title: const Text('Equalizer'),
+              subtitle: Text(p.eqEnabled ? 'On' : 'Off'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.openEqualizer(),
+            ),
           const _Section('Library'),
           ListTile(
             leading: sync.isSyncing
@@ -143,15 +151,16 @@ class SettingsPage extends StatelessWidget {
             subtitle: Text(_syncSummary(sync)),
             onTap: sync.isSyncing ? null : sync.sync,
           ),
-          ListTile(
-            leading: const Icon(Icons.download_for_offline_outlined),
-            title: const Text('Downloads'),
-            subtitle: Text(
-              '${downloads.downloaded.length} songs • ${_formatBytes(downloads.usedBytes)}',
+          if (caps.supportsDownloads)
+            ListTile(
+              leading: const Icon(Icons.download_for_offline_outlined),
+              title: const Text('Downloads'),
+              subtitle: Text(
+                '${downloads.downloaded.length} songs • ${_formatBytes(downloads.usedBytes)}',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.openDownloads(),
             ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.openDownloads(),
-          ),
           ListTile(
             leading: const Icon(Icons.dashboard_customize_outlined),
             title: const Text('Home layout'),
@@ -162,11 +171,13 @@ class SettingsPage extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Sign out'),
-            subtitle: const Text(
-                'Removes downloads and the synced library from this device'),
+            subtitle: Text(caps.supportsDownloads
+                ? 'Removes downloads and the synced library from this device'
+                : 'Removes the synced library from this browser'),
             onTap: () => confirmSignOut(context),
           ),
         ],
+      ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -18,6 +19,9 @@ class _LoginPageState extends State<LoginPage> {
   bool _busy = false;
   bool _obscure = true;
   String? _error;
+
+  /// Plain `http://` works, but nothing on the way to the server is encrypted.
+  bool get _plainHttp => _url.text.trim().toLowerCase().startsWith('http://');
 
   @override
   void dispose() {
@@ -80,11 +84,19 @@ class _LoginPageState extends State<LoginPage> {
                     TextFormField(
                       controller: _url,
                       keyboardType: TextInputType.url,
+                      textInputAction: TextInputAction.next,
                       autocorrect: false,
-                      decoration: const InputDecoration(
+                      autofillHints: const [AutofillHints.url],
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
                         labelText: 'Server URL',
                         hintText: 'https://music.example.com',
-                        border: OutlineInputBorder(),
+                        border: const OutlineInputBorder(),
+                        helperMaxLines: 3,
+                        helperText: _plainHttp
+                            ? 'Plain http is not encrypted. Fine on your home '
+                                'network; use https over the internet.'
+                            : null,
                       ),
                       validator: (v) => (v == null || v.trim().isEmpty)
                           ? 'Enter the server URL'
@@ -93,6 +105,8 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _user,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.username],
                       autocorrect: false,
                       decoration: const InputDecoration(
                         labelText: 'Username',
@@ -106,6 +120,7 @@ class _LoginPageState extends State<LoginPage> {
                     TextFormField(
                       controller: _pass,
                       obscureText: _obscure,
+                      autofillHints: const [AutofillHints.password],
                       onFieldSubmitted: (_) => _submit(),
                       decoration: InputDecoration(
                         labelText: 'Password',
@@ -128,6 +143,16 @@ class _LoginPageState extends State<LoginPage> {
                         style: TextStyle(
                             color: Theme.of(context).colorScheme.error),
                       ),
+                      if (kIsWeb)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            'In a browser the server must allow this site '
+                            '(CORS), and an https page can only reach an '
+                            'https server.',
+                            style: textTheme.bodySmall,
+                          ),
+                        ),
                     ],
                     const SizedBox(height: 20),
                     FilledButton(

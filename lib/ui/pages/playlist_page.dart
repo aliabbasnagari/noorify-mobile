@@ -3,10 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/models.dart';
-import '../../state/player_controller.dart';
-import '../../state/session_controller.dart';
 import '../../state/download_controller.dart';
+import '../../state/player_controller.dart';
+import '../../state/playlists_revision.dart';
+import '../../state/session_controller.dart';
 import '../util.dart';
+import '../widgets/collection_page.dart';
+import '../widgets/cover_art.dart';
 import '../widgets/offline_switch.dart';
 import '../widgets/song_tile.dart';
 
@@ -14,6 +17,8 @@ class PlaylistPage extends StatefulWidget {
   const PlaylistPage({super.key, required this.playlistId, required this.name});
 
   final String playlistId;
+
+  /// The name known when the page was opened, shown until the playlist loads.
   final String name;
 
   @override
@@ -22,6 +27,9 @@ class PlaylistPage extends StatefulWidget {
 
 class _PlaylistPageState extends State<PlaylistPage> {
   late Future<Playlist> _future;
+
+  /// Starts as the name passed in, then follows renames and the server's name.
+  late String _name = widget.name;
 
   @override
   void initState() {
@@ -32,13 +40,34 @@ class _PlaylistPageState extends State<PlaylistPage> {
   void _load() => _future =
       context.read<SessionController>().client!.getPlaylist(widget.playlistId);
 
+  Future<void> _rename() async {
+    final client = context.read<SessionController>().client!;
+    final revision = context.read<PlaylistsRevision>();
+    final name = await promptForText(context, 'Rename playlist', 'Name',
+        initialText: _name);
+    if (name == null || name == _name) return;
+    try {
+      await client.renamePlaylist(widget.playlistId, name);
+      revision.bump();
+      if (mounted) {
+        setState(() {
+          _name = name;
+          _load();
+        });
+      }
+    } on Object catch (e) {
+      if (mounted) showError(context, e);
+    }
+  }
+
   Future<void> _delete() async {
     final client = context.read<SessionController>().client!;
+    final revision = context.read<PlaylistsRevision>();
     final router = GoRouter.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Delete "${widget.name}"?'),
+        title: Text('Delete "$_name"?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -52,6 +81,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
     if (confirmed != true) return;
     try {
       await client.deletePlaylist(widget.playlistId);
+      revision.bump();
       router.pop();
     } on Object catch (e) {
       if (mounted) showError(context, e);
@@ -60,8 +90,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
   Future<void> _removeAt(int index) async {
     final client = context.read<SessionController>().client!;
+    final revision = context.read<PlaylistsRevision>();
     try {
       await client.removeFromPlaylist(widget.playlistId, [index]);
+      revision.bump();
       if (mounted) setState(_load);
     } on Object catch (e) {
       if (mounted) showError(context, e);
@@ -71,10 +103,19 @@ class _PlaylistPageState extends State<PlaylistPage> {
   @override
   Widget build(BuildContext context) {
     final player = context.read<PlayerController>();
+    final client = context.read<SessionController>().client;
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(widget.name),
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         actions: [
+          IconButton(
+            tooltip: 'Rename playlist',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: _rename,
+          ),
           IconButton(
             tooltip: 'Delete playlist',
             icon: const Icon(Icons.delete_outline),
@@ -92,60 +133,101 @@ class _PlaylistPageState extends State<PlaylistPage> {
           if (!snap.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          final songs = snap.data!.songs;
-          final playlistName = snap.data!.name;
-          if (songs.isEmpty) {
-            return const Center(child: Text('This playlist is empty'));
-          }
+          final playlist = snap.data!;
+          final songs = playlist.songs;
+          // The server's name wins once known (it may differ from the URL's).
+          final name = playlist.name.isEmpty ? _name : playlist.name;
+          final total = songs.fold<int>(0, (sum, s) => sum + s.duration);
+
           return ListView(
+            padding: const EdgeInsets.only(bottom: 16),
             children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () =>
-                            player.playSongs(songs, source: playlistName),
-                        icon: const Icon(Icons.play_arrow),
-                        label: const Text('Play'),
+              CollectionHeader(
+                type: 'Playlist',
+                title: name,
+                tintImage: playlist.coverArt == null
+                    ? null
+                    : client?.coverArtUrl(playlist.coverArt!, size: 300),
+                artBuilder: (size) => playlist.coverArt == null
+                    ? _PlaylistArt(size: size)
+                    : CoverArt(
+                        coverArt: playlist.coverArt,
+                        size: size,
+                        requestSize: 500,
+                        radius: 6,
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.tonalIcon(
-                        onPressed: () => player.playSongs(songs,
-                            shuffle: true, source: playlistName),
-                        icon: const Icon(Icons.shuffle),
-                        label: const Text('Shuffle'),
-                      ),
-                    ),
-                  ],
+                meta: Text(
+                  songs.isEmpty
+                      ? 'No songs yet'
+                      : '${songs.length} ${songs.length == 1 ? 'song' : 'songs'}'
+                          ' • ${formatTotal(total)}',
                 ),
               ),
-              OfflineSwitch(
-                collection: OfflineCollection(
-                  type: 'playlist',
-                  id: widget.playlistId,
-                  title: widget.name,
-                ),
-                songs: songs,
-              ),
-              for (var i = 0; i < songs.length; i++)
-                SongTile(
-                  song: songs[i],
-                  onTap: () =>
-                      player.playSongs(songs, index: i, source: playlistName),
-                  extraActions: [
-                    PopupMenuItem<VoidCallback>(
-                      value: () => _removeAt(i),
-                      child: const Text('Remove from playlist'),
+              CollectionActions(
+                onPlay: songs.isEmpty
+                    ? null
+                    : () => player.playSongs(songs, source: name),
+                onShuffle: songs.isEmpty
+                    ? null
+                    : () => player.playSongs(songs, shuffle: true, source: name),
+                trailing: [
+                  OfflineToggleButton(
+                    collection: OfflineCollection(
+                      type: 'playlist',
+                      id: widget.playlistId,
+                      title: name,
                     ),
-                  ],
-                ),
+                    songs: songs,
+                  ),
+                ],
+              ),
+              if (songs.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(child: Text('This playlist is empty')),
+                )
+              else ...[
+                const TrackTableHeader(),
+                for (var i = 0; i < songs.length; i++)
+                  SongTile(
+                    song: songs[i],
+                    onTap: () =>
+                        player.playSongs(songs, index: i, source: name),
+                    extraActions: [
+                      PopupMenuItem<VoidCallback>(
+                        value: () => _removeAt(i),
+                        child: const Text('Remove from playlist'),
+                      ),
+                    ],
+                  ),
+              ],
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// The cover shown for a playlist the server has no art for.
+class _PlaylistArt extends StatelessWidget {
+  const _PlaylistArt({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(6),
+          color: scheme.secondaryContainer,
+        ),
+        child: Icon(Icons.queue_music,
+            size: size * 0.4, color: scheme.onSurfaceVariant),
       ),
     );
   }

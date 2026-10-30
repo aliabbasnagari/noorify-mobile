@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'data/local/app_database.dart';
 import 'state/download_controller.dart';
+import 'state/library_data.dart';
 import 'state/library_recents.dart';
 import 'state/player_controller.dart';
 import 'state/playlists_revision.dart';
@@ -17,6 +18,7 @@ import 'state/settings_controller.dart';
 import 'state/smart_playlist_store.dart';
 import 'state/star_controller.dart';
 import 'state/sync_controller.dart';
+import 'ui/adaptive/platform_caps.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,11 +45,16 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => SessionController()..restore()),
         ChangeNotifierProvider(create: (_) => SettingsController(prefs)),
+        Provider(create: (_) => PlatformCaps.current()),
         ChangeNotifierProvider(create: (_) => PlaylistsRevision()),
         ChangeNotifierProvider(create: (_) => SearchQuery()),
         ChangeNotifierProvider(create: (_) => LibraryRecents(prefs)),
         ChangeNotifierProvider(create: (_) => SmartPlaylistStore(prefs)),
         Provider(create: (_) => AppDatabase()),
+        ChangeNotifierProxyProvider<SessionController, LibraryData>(
+          create: (context) => LibraryData(context.read<PlaylistsRevision>()),
+          update: (_, session, data) => data!..attach(session.client),
+        ),
         ChangeNotifierProxyProvider<SessionController, SyncController>(
           create: (context) => SyncController(context.read<AppDatabase>()),
           update: (_, session, sync) => sync!..attach(session.client),

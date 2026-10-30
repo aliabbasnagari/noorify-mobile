@@ -39,6 +39,14 @@ enum AlbumListType {
 
   const AlbumListType(this.apiValue);
   final String apiValue;
+
+  /// The type whose Dart name is [name] (as used in page URLs), or null.
+  static AlbumListType? fromName(String? name) {
+    for (final t in values) {
+      if (t.name == name) return t;
+    }
+    return null;
+  }
 }
 
 /// Minimal Subsonic / OpenSubsonic REST client using token authentication.
@@ -149,6 +157,17 @@ class SubsonicClient {
 
   Future<Artist> getArtist(String id) async =>
       Artist.fromJson((await _call('getArtist', {'id': id}))['artist']);
+
+  /// Biography, picture and similar artists for [artistId] (`getArtistInfo2`).
+  /// What comes back depends on the server's metadata sources, so any part may
+  /// be missing; an artist with nothing known gives an empty [ArtistInfo].
+  Future<ArtistInfo> getArtistInfo(String artistId,
+      {int similarCount = 12}) async {
+    final root =
+        await _call('getArtistInfo2', {'id': artistId, 'count': similarCount});
+    return ArtistInfo.fromJson(
+        (root['artistInfo2'] as Map?)?.cast<String, dynamic>() ?? const {});
+  }
 
   Future<List<Album>> getAlbumList(
     AlbumListType type, {
@@ -323,6 +342,9 @@ class SubsonicClient {
         'playlistId': playlistId,
         'songIndexToRemove': indexes,
       });
+
+  Future<void> renamePlaylist(String playlistId, String name) =>
+      _call('updatePlaylist', {'playlistId': playlistId, 'name': name});
 
   Future<void> deletePlaylist(String id) => _call('deletePlaylist', {'id': id});
 

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:noorify/data/local/app_database.dart';
 import 'package:noorify/state/download_controller.dart';
+import 'package:noorify/state/library_data.dart';
 import 'package:noorify/state/library_recents.dart';
 import 'package:noorify/state/player_controller.dart';
 import 'package:noorify/state/playlists_revision.dart';
@@ -17,6 +18,7 @@ import 'package:noorify/state/smart_playlist_store.dart';
 import 'package:noorify/state/star_controller.dart';
 import 'package:noorify/state/sync_controller.dart';
 import 'package:noorify/subsonic/subsonic_client.dart';
+import 'package:noorify/ui/adaptive/platform_caps.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -124,6 +126,7 @@ class TestApp {
     required this.player,
     required this.settings,
     required this.recents,
+    required this.library,
     required this.searchQuery,
     required this.stars,
     required this.revision,
@@ -133,12 +136,14 @@ class TestApp {
     required this.database,
     required this.players,
     required this.requests,
+    required this.caps,
   });
 
   final SessionController session;
   final PlayerController player;
   final SettingsController settings;
   final LibraryRecents recents;
+  final LibraryData library;
   final SearchQuery searchQuery;
   final StarController stars;
   final PlaylistsRevision revision;
@@ -153,6 +158,9 @@ class TestApp {
   /// Every request the fake server received.
   final List<Uri> requests;
 
+  /// What the platform under test can do (see [PlatformCaps]).
+  final PlatformCaps caps;
+
   FakeAudioPlayer get audio => players.first;
 
   /// [stored] is what the secure storage holds (empty means signed out);
@@ -161,6 +169,7 @@ class TestApp {
     Map<String, String> stored = savedLogin,
     bool restore = true,
     http.Response Function(http.Request request) server = defaultServer,
+    PlatformCaps? caps,
   }) async {
     FlutterSecureStorage.setMockInitialValues({...stored});
     SharedPreferences.setMockInitialValues({});
@@ -185,21 +194,24 @@ class TestApp {
     });
     final settings = SettingsController(prefs);
     final database = AppDatabase.withExecutor(NativeDatabase.memory());
+    final revision = PlaylistsRevision();
 
     final app = TestApp._(
       session: session,
       player: player,
       settings: settings,
       recents: LibraryRecents(prefs),
+      library: LibraryData(revision),
       searchQuery: SearchQuery(),
       stars: StarController(),
-      revision: PlaylistsRevision(),
+      revision: revision,
       smartPlaylists: SmartPlaylistStore(prefs),
       downloads: DownloadController(),
       sync: SyncController(database),
       database: database,
       players: players,
       requests: requests,
+      caps: caps ?? PlatformCaps.current(),
     );
 
     if (restore) await session.restore();
@@ -208,17 +220,20 @@ class TestApp {
       ..attach(session.client)
       ..attachSettings(settings);
     app.stars.attach(session.client);
+    app.library.attach(session.client);
     return app;
   }
 
   /// Wraps [child] in providers for every controller.
   Widget providers(Widget child) => MultiProvider(
         providers: [
+          Provider<PlatformCaps>.value(value: caps),
           ChangeNotifierProvider<SessionController>.value(value: session),
           ChangeNotifierProvider<SettingsController>.value(value: settings),
           ChangeNotifierProvider<PlaylistsRevision>.value(value: revision),
           ChangeNotifierProvider<SearchQuery>.value(value: searchQuery),
           ChangeNotifierProvider<LibraryRecents>.value(value: recents),
+          ChangeNotifierProvider<LibraryData>.value(value: library),
           ChangeNotifierProvider<SmartPlaylistStore>.value(
               value: smartPlaylists),
           ChangeNotifierProvider<StarController>.value(value: stars),
@@ -232,6 +247,7 @@ class TestApp {
   /// Releases what the app holds; register with `addTearDown`.
   Future<void> dispose() async {
     player.dispose();
+    library.dispose();
     await database.close();
   }
 }

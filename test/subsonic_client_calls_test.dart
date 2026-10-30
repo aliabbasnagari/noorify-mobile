@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:noorify/models/models.dart';
 import 'package:noorify/subsonic/subsonic_client.dart';
 
 /// Requests the fake server received during the current test.
@@ -69,6 +70,15 @@ void main() {
       expect(endpoint(sent), 'updatePlaylist.view');
       expect(sent.queryParameters['playlistId'], 'p1');
       expect(sent.queryParametersAll['songIndexToRemove'], ['0', '3']);
+    });
+
+    test('renamePlaylist uses updatePlaylist with the new name', () async {
+      await clientReplying().renamePlaylist('p1', 'Night drive');
+
+      expect(endpoint(sent), 'updatePlaylist.view');
+      expect(sent.queryParameters['playlistId'], 'p1');
+      expect(sent.queryParameters['name'], 'Night drive');
+      expect(sent.queryParametersAll.containsKey('songIdToAdd'), isFalse);
     });
 
     test('deletePlaylist sends the id', () async {
@@ -241,6 +251,106 @@ void main() {
         client.star('s1'),
         throwsA(isA<SubsonicException>().having(
             (e) => e.message, 'message', startsWith('Could not reach server'))),
+      );
+    });
+  });
+
+  group('artist info', () {
+    test('reads the biography, picture and similar artists', () async {
+      final info = await clientReplying({
+        'artistInfo2': {
+          'biography':
+              'Beck is an <a href="https://x.example">American</a> artist.<br/>'
+                  'Rock &amp; folk.',
+          'lastFmUrl': 'https://last.fm/music/Beck',
+          'smallImageUrl': 'https://img.example/s.jpg',
+          'mediumImageUrl': 'https://img.example/m.jpg',
+          'largeImageUrl': 'https://img.example/l.jpg',
+          'similarArtist': [
+            {'id': 'a2', 'name': 'Beirut', 'albumCount': 3},
+            {'id': 'a3', 'name': 'Bon Iver'},
+          ],
+        },
+      }).getArtistInfo('a1', similarCount: 5);
+
+      expect(endpoint(sent), 'getArtistInfo2.view');
+      expect(sent.queryParameters['id'], 'a1');
+      expect(sent.queryParameters['count'], '5');
+      expect(info.biography, 'Beck is an American artist.\nRock & folk.');
+      expect(info.imageUrl, 'https://img.example/l.jpg');
+      expect(info.lastFmUrl, 'https://last.fm/music/Beck');
+      expect(info.similarArtists.map((a) => a.name), ['Beirut', 'Bon Iver']);
+      expect(info.similarArtists.first.albumCount, 3);
+      expect(info.isEmpty, isFalse);
+    });
+
+    test('falls back to a smaller picture when the large one is missing',
+        () async {
+      final info = await clientReplying({
+        'artistInfo2': {'smallImageUrl': 'https://img.example/s.jpg'},
+      }).getArtistInfo('a1');
+
+      expect(info.imageUrl, 'https://img.example/s.jpg');
+    });
+
+    test('an artist the server knows nothing about gives empty info',
+        () async {
+      final info =
+          await clientReplying({'artistInfo2': {}}).getArtistInfo('a1');
+
+      expect(info.isEmpty, isTrue);
+      expect(info.biography, isNull);
+      expect(info.similarArtists, isEmpty);
+    });
+
+    test('a response with no artistInfo2 at all is also empty', () async {
+      expect((await clientReplying().getArtistInfo('a1')).isEmpty, isTrue);
+    });
+
+    test('blank text fields count as missing', () async {
+      final info = await clientReplying({
+        'artistInfo2': {
+          'biography': '   ',
+          'lastFmUrl': '',
+          'largeImageUrl': '  ',
+        },
+      }).getArtistInfo('a1');
+
+      expect(info.isEmpty, isTrue);
+    });
+
+    test('a biography that is only markup is treated as missing', () async {
+      final info = await clientReplying({
+        'artistInfo2': {'biography': '<a href="x"></a><br/>'},
+      }).getArtistInfo('a1');
+
+      expect(info.biography, isNull);
+    });
+
+    test('plainText decodes the common entities and tidies line ends', () {
+      expect(ArtistInfo.plainText('Tom &amp; Jerry &quot;live&quot; &#39;99'),
+          'Tom & Jerry "live" \'99');
+      expect(ArtistInfo.plainText('a  \nb'), 'a\nb');
+      expect(ArtistInfo.plainText(null), isNull);
+    });
+
+    test('a server error is reported like any other call', () {
+      final client = SubsonicClient(
+        config,
+        httpClient: MockClient((_) async => http.Response(
+              jsonEncode({
+                'subsonic-response': {
+                  'status': 'failed',
+                  'error': {'code': 70, 'message': 'Artist not found'},
+                },
+              }),
+              200,
+            )),
+      );
+
+      expect(
+        client.getArtistInfo('nope'),
+        throwsA(isA<SubsonicException>().having((e) => e.code, 'code', 70)),
       );
     });
   });

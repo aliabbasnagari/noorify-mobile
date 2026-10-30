@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:noorify/ui/routing/app_router.dart';
+import 'package:noorify/ui/widgets/quick_access.dart';
 
 import 'support/test_app.dart';
 
@@ -14,9 +15,10 @@ void main() {
     WidgetTester tester, {
     Map<String, String> stored = savedLogin,
     bool restoreFirst = true,
+    Size size = const Size(390, 844),
   }) async {
     tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(390, 844);
+    tester.view.physicalSize = size;
     addTearDown(tester.view.reset);
 
     app = await TestApp.create(stored: stored, restore: restoreFirst);
@@ -110,6 +112,171 @@ void main() {
 
     expect(currentPath(tester), '/library/playlist/p1');
     expect(currentUri(tester).queryParameters['name'], 'Road trip');
+  });
+
+  group('Home', () {
+    testWidgets('shows the recent albums as quick-access tiles',
+        (tester) async {
+      await pumpApp(tester);
+
+      final tiles = find.byType(QuickAccessGrid);
+      expect(tiles, findsOneWidget);
+      expect(find.descendant(of: tiles, matching: find.text('Test Album')),
+          findsOneWidget);
+      expect(find.descendant(of: tiles, matching: find.text('Odelay')),
+          findsOneWidget);
+    });
+
+    testWidgets('a quick-access tile opens the album', (tester) async {
+      await pumpApp(tester);
+
+      await tester.tap(find.descendant(
+          of: find.byType(QuickAccessGrid), matching: find.text('Test Album')));
+      await tester.pumpAndSettle();
+
+      expect(currentPath(tester), '/home/album/al1');
+    });
+
+    testWidgets('every shelf but Discover offers Show all', (tester) async {
+      // Tall enough to build all four shelves at once.
+      await pumpApp(tester, size: const Size(390, 2400));
+
+      // Recently played, Newly added and Most played; Discover is shuffled.
+      expect(find.text('Show all'), findsNWidgets(3));
+      expect(find.text('Discover'), findsOneWidget);
+    });
+
+    testWidgets('Show all opens the full list behind that shelf',
+        (tester) async {
+      await pumpApp(tester);
+
+      await tester.tap(find.text('Show all').first);
+      await tester.pumpAndSettle();
+
+      expect(currentPath(tester), '/home/albums');
+      expect(currentUri(tester).queryParameters['type'], 'recent');
+      // The page is titled for the shelf, and lists its albums.
+      expect(
+          find.descendant(
+              of: find.byType(AppBar), matching: find.text('Recently played')),
+          findsOneWidget);
+      expect(find.text('Test Album'), findsOneWidget);
+      final request = app.requests
+          .where((u) => u.pathSegments.last == 'getAlbumList2.view')
+          .last;
+      expect(request.queryParameters['type'], 'recent');
+      expect(request.queryParameters['size'], '60');
+    });
+
+    testWidgets('the albums page without a type lists every album A to Z',
+        (tester) async {
+      startAt(tester, '/home/albums');
+
+      await pumpApp(tester);
+
+      expect(
+          find.descendant(
+              of: find.byType(AppBar), matching: find.text('Albums')),
+          findsOneWidget);
+      expect(app.requests.last.queryParameters['type'], 'alphabeticalByName');
+    });
+
+    testWidgets('an unknown type falls back to every album', (tester) async {
+      startAt(tester, '/home/albums?type=bogus');
+
+      await pumpApp(tester);
+
+      expect(
+          find.descendant(
+              of: find.byType(AppBar), matching: find.text('Albums')),
+          findsOneWidget);
+    });
+  });
+
+  group('Your Library on a phone', () {
+    Future<void> openLibrary(WidgetTester tester) async {
+      await pumpApp(tester);
+      await tester.tap(find.text('Your Library'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('lists the pinned rows, playlists and filter chips',
+        (tester) async {
+      await openLibrary(tester);
+
+      for (final title in [
+        'Favorites',
+        'Songs',
+        'Downloads',
+        'Smart playlists',
+        'Road trip',
+        'Calm',
+      ]) {
+        expect(find.text(title), findsWidgets, reason: title);
+      }
+      for (final chip in ['Playlists', 'Artists', 'Albums', 'Downloaded']) {
+        expect(find.widgetWithText(FilterChip, chip), findsOneWidget,
+            reason: chip);
+      }
+    });
+
+    testWidgets('a shortcut row opens its page inside the Library tab',
+        (tester) async {
+      await openLibrary(tester);
+
+      await tester.tap(find.text('Songs').last);
+      await tester.pumpAndSettle();
+
+      expect(currentPath(tester), '/library/songs');
+    });
+
+    testWidgets('Favorites opens the favorites page', (tester) async {
+      await openLibrary(tester);
+
+      await tester.tap(find.text('Favorites').last);
+      await tester.pumpAndSettle();
+
+      expect(currentPath(tester), '/library/favorites');
+    });
+
+    testWidgets('a filter chip narrows the list', (tester) async {
+      await openLibrary(tester);
+
+      await tester.tap(find.widgetWithText(FilterChip, 'Artists'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Beck'), findsOneWidget);
+      expect(find.text('Road trip'), findsNothing);
+      expect(find.text('Songs'), findsNothing);
+    });
+
+    testWidgets('the header Create button opens the Create menu',
+        (tester) async {
+      await openLibrary(tester);
+
+      // (The bottom bar's Create item has the same tooltip, so find the
+      // header button by its icon.)
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.add));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Smart playlist'), findsOneWidget);
+    });
+
+    testWidgets('a new playlist shows up without leaving the page',
+        (tester) async {
+      await openLibrary(tester);
+      final before = app.requests
+          .where((u) => u.pathSegments.last == 'getPlaylists.view')
+          .length;
+
+      app.revision.bump();
+      await tester.pumpAndSettle();
+
+      final after = app.requests
+          .where((u) => u.pathSegments.last == 'getPlaylists.view')
+          .length;
+      expect(after, before + 1);
+    });
   });
 
   testWidgets('a deep link opens that page in the right tab', (tester) async {

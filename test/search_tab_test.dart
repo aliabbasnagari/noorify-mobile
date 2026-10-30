@@ -39,7 +39,8 @@ void main() {
     await afterDebounce(tester);
 
     expect(app.searchQuery.text, 'first');
-    expect(find.text('First Song'), findsOneWidget);
+    // The song is both the top result and a row in the list.
+    expect(find.text('First Song'), findsNWidgets(2));
     expect(searches(), 1);
   });
 
@@ -68,7 +69,8 @@ void main() {
       tester.widget<TextField>(find.byType(TextField)).controller?.text,
       'first',
     );
-    expect(find.text('First Song'), findsOneWidget);
+    // The song is both the top result and a row in the list.
+    expect(find.text('First Song'), findsNWidgets(2));
   });
 
   testWidgets('text typed before the page existed is searched on arrival',
@@ -85,7 +87,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('First Song'), findsOneWidget);
+    // The song is both the top result and a row in the list.
+    expect(find.text('First Song'), findsNWidgets(2));
   });
 
   testWidgets('the clear button empties the query and the results',
@@ -93,7 +96,8 @@ void main() {
     await pumpSearch(tester);
     await tester.enterText(find.byType(TextField), 'first');
     await afterDebounce(tester);
-    expect(find.text('First Song'), findsOneWidget);
+    // The song is both the top result and a row in the list.
+    expect(find.text('First Song'), findsNWidgets(2));
 
     await tester.tap(find.byTooltip('Clear'));
     await tester.pumpAndSettle();
@@ -121,6 +125,7 @@ void main() {
     await afterDebounce(tester);
 
     expect(find.byType(TextField), findsNothing);
-    expect(find.text('First Song'), findsOneWidget);
+    // The song is both the top result and a row in the list.
+    expect(find.text('First Song'), findsNWidgets(2));
   });
 }

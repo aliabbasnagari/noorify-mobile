@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../subsonic/subsonic_client.dart';
+import '../shell/library_entries.dart';
 import 'app_routes.dart';
 
 /// Opening pages from anywhere in the UI.
@@ -25,7 +27,10 @@ extension AppNavigation on BuildContext {
   Future<void> openPlaylist(String id, String name) => _open(
       'playlist/${Uri.encodeComponent(id)}?name=${Uri.encodeQueryComponent(name)}');
 
-  Future<void> openAlbums() => _open('albums');
+  /// All albums, or the full list behind one of Home's shelves when [type] is
+  /// given (`albums?type=newest`).
+  Future<void> openAlbums({AlbumListType? type}) =>
+      _open(type == null ? 'albums' : 'albums?type=${type.name}');
   Future<void> openArtists() => _open('artists');
   Future<void> openSongs() => _open('songs');
   Future<void> openFavorites() => _open('favorites');
@@ -38,6 +43,9 @@ extension AppNavigation on BuildContext {
 
   Future<void> editSmartPlaylist(String id) =>
       _open('smart/${Uri.encodeComponent(id)}/edit');
+
+  /// Opens whatever a Your Library row points at.
+  Future<void> openLibraryEntry(LibraryEntry entry) => _open(entry.detailPath);
 
   Future<void> openSettings() => _open('settings');
   Future<void> openEqualizer() => _open('settings/equalizer');

@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/models.dart';
+import '../../state/download_controller.dart';
 import '../../state/player_controller.dart';
 import '../../state/session_controller.dart';
+import '../adaptive/layout.dart';
+import '../routing/navigation.dart';
 import '../util.dart';
-import '../../state/download_controller.dart';
+import '../widgets/album_widgets.dart';
+import '../widgets/collection_page.dart';
 import '../widgets/cover_art.dart';
 import '../widgets/offline_switch.dart';
 import '../widgets/song_tile.dart';
-import '../routing/navigation.dart';
 
 class AlbumPage extends StatefulWidget {
   const AlbumPage({super.key, required this.albumId});
@@ -35,7 +38,12 @@ class _AlbumPageState extends State<AlbumPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+      ),
       body: FutureBuilder<Album>(
         future: _future,
         builder: (context, snap) {
@@ -61,92 +69,79 @@ class _AlbumBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final player = context.read<PlayerController>();
-    final textTheme = Theme.of(context).textTheme;
+    final client = context.read<SessionController>().client;
     final songs = album.songs;
-    final meta = [
-      if (album.year != null) '${album.year}',
-      '${songs.length} songs',
-      formatTotal(album.duration),
-    ].join(' • ');
+    final collection =
+        OfflineCollection(type: 'album', id: album.id, title: album.name);
+
+    final details = <Widget>[
+      if (album.artist != null)
+        InkWell(
+          onTap: album.artistId == null
+              ? null
+              : () => context.openArtist(album.artistId!),
+          child: Text(
+            album.artist!,
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ),
+      if (album.year != null) Text('${album.year}'),
+      Text(songs.length == 1 ? '1 song' : '${songs.length} songs'),
+      Text(formatTotal(album.duration)),
+    ];
 
     return ListView(
+      padding: const EdgeInsets.only(bottom: 16),
       children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+        CollectionHeader(
+          // One-track releases are singles.
+          type: songs.length == 1 ? 'Single' : 'Album',
+          title: album.name,
+          tintImage: album.coverArt == null
+              ? null
+              : client?.coverArtUrl(album.coverArt!, size: 300),
+          artBuilder: (size) => CoverArt(
+            coverArt: album.coverArt,
+            size: size,
+            requestSize: 500,
+            radius: 6,
+          ),
+          meta: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 6,
+            runSpacing: 2,
             children: [
-              CoverArt(
-                  coverArt: album.coverArt,
-                  size: 140,
-                  requestSize: 400,
-                  radius: 12),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(album.name, style: textTheme.titleLarge, maxLines: 3),
-                    if (album.artist != null)
-                      InkWell(
-                        onTap: album.artistId == null
-                            ? null
-                            : () => context.openArtist(album.artistId!),
-                        child: Text(
-                          album.artist!,
-                          style: textTheme.titleMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 4),
-                    Text(meta, style: textTheme.bodySmall),
-                  ],
-                ),
-              ),
+              for (var i = 0; i < details.length; i++) ...[
+                if (i > 0) const Text('•'),
+                details[i],
+              ],
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: songs.isEmpty
-                      ? null
-                      : () => player.playSongs(songs, source: album.name),
-                  icon: const Icon(Icons.play_arrow),
-                  label: const Text('Play'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton.tonalIcon(
-                  onPressed: songs.isEmpty
-                      ? null
-                      : () => player.playSongs(songs,
-                          shuffle: true, source: album.name),
-                  icon: const Icon(Icons.shuffle),
-                  label: const Text('Shuffle'),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Add album to playlist',
-                icon: const Icon(Icons.playlist_add),
-                onPressed: songs.isEmpty
-                    ? null
-                    : () => showAddToPlaylistSheet(context, songs),
-              ),
-            ],
-          ),
+        CollectionActions(
+          onPlay: songs.isEmpty
+              ? null
+              : () => player.playSongs(songs, source: album.name),
+          onShuffle: songs.isEmpty
+              ? null
+              : () => player.playSongs(songs,
+                  shuffle: true, source: album.name),
+          trailing: [
+            OfflineToggleButton(collection: collection, songs: songs),
+            IconButton(
+              tooltip: 'Add album to playlist',
+              iconSize: 28,
+              icon: const Icon(Icons.playlist_add),
+              onPressed: songs.isEmpty
+                  ? null
+                  : () => showAddToPlaylistSheet(context, songs),
+            ),
+          ],
         ),
-        OfflineSwitch(
-          collection:
-              OfflineCollection(type: 'album', id: album.id, title: album.name),
-          songs: songs,
-        ),
-        const SizedBox(height: 8),
+        const TrackTableHeader(),
         for (var i = 0; i < songs.length; i++)
           SongTile(
             song: songs[i],
@@ -154,8 +149,65 @@ class _AlbumBody extends StatelessWidget {
             showTrackNumber: true,
             onTap: () => player.playSongs(songs, index: i, source: album.name),
           ),
-        const SizedBox(height: 16),
+        if (album.artistId != null && album.artist != null)
+          _MoreByArtist(
+            artistId: album.artistId!,
+            artistName: album.artist!,
+            exceptAlbumId: album.id,
+          ),
       ],
     );
   }
+}
+
+/// A shelf of the artist's other albums, under the track list. Hidden when
+/// there are none, or if they can't be loaded: the album itself is the point
+/// of the page.
+class _MoreByArtist extends StatefulWidget {
+  const _MoreByArtist({
+    required this.artistId,
+    required this.artistName,
+    required this.exceptAlbumId,
+  });
+
+  final String artistId;
+  final String artistName;
+  final String exceptAlbumId;
+
+  @override
+  State<_MoreByArtist> createState() => _MoreByArtistState();
+}
+
+class _MoreByArtistState extends State<_MoreByArtist> {
+  late final Future<Artist> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future =
+        context.read<SessionController>().client!.getArtist(widget.artistId);
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<Artist>(
+        future: _future,
+        builder: (context, snap) {
+          final others = [
+            for (final a in snap.data?.albums ?? const <Album>[])
+              if (a.id != widget.exceptAlbumId) a,
+          ];
+          if (others.isEmpty) return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: AdaptiveShelf(
+              title: 'More by ${widget.artistName}',
+              itemCount: others.length,
+              showAllLabel: 'See discography',
+              onShowAll: () => context.openArtist(widget.artistId),
+              itemBuilder: (_, i, width) =>
+                  AlbumCard(album: others[i], width: width),
+            ),
+          );
+        },
+      );
 }

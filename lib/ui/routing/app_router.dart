@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../state/session_controller.dart';
 import '../../state/smart_playlist_store.dart';
+import '../../subsonic/subsonic_client.dart';
 import '../app_shell.dart';
 import '../login_page.dart';
 import '../pages/album_list_page.dart';
@@ -151,7 +152,13 @@ List<RouteBase> _detailRoutes() => [
           ),
         ),
       ),
-      GoRoute(path: 'albums', builder: (_, __) => const AlbumListPage()),
+      GoRoute(
+        path: 'albums',
+        builder: (_, state) => AlbumListPage(
+          type: AlbumListType.fromName(state.uri.queryParameters['type']) ??
+              AlbumListType.alphabetical,
+        ),
+      ),
       GoRoute(path: 'artists', builder: (_, __) => const ArtistListPage()),
       GoRoute(path: 'songs', builder: (_, __) => const SongListPage()),
       GoRoute(

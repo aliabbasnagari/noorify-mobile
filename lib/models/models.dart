@@ -212,6 +212,68 @@ class Artist {
       );
 }
 
+/// Extra information about an artist from `getArtistInfo2`: a biography, a
+/// picture and similar artists. Every part is optional; servers fill in what
+/// their metadata sources (Last.fm, MusicBrainz) know.
+class ArtistInfo {
+  const ArtistInfo({
+    this.biography,
+    this.imageUrl,
+    this.lastFmUrl,
+    this.similarArtists = const [],
+  });
+
+  /// The biography as plain text (markup removed), or null when there is none.
+  final String? biography;
+
+  /// The largest picture the server offered.
+  final String? imageUrl;
+  final String? lastFmUrl;
+  final List<Artist> similarArtists;
+
+  bool get isEmpty =>
+      biography == null &&
+      imageUrl == null &&
+      lastFmUrl == null &&
+      similarArtists.isEmpty;
+
+  factory ArtistInfo.fromJson(Map<String, dynamic> j) {
+    String? text(Object? v) {
+      final s = v is String ? v.trim() : '';
+      return s.isEmpty ? null : s;
+    }
+
+    return ArtistInfo(
+      biography: plainText(text(j['biography'])),
+      imageUrl: text(j['largeImageUrl']) ??
+          text(j['mediumImageUrl']) ??
+          text(j['smallImageUrl']),
+      lastFmUrl: text(j['lastFmUrl']),
+      similarArtists: _maps(j['similarArtist']).map(Artist.fromJson).toList(),
+    );
+  }
+
+  /// Strips the markup servers put in biographies (Last.fm sends links and
+  /// line breaks as HTML) and the entities in what is left. Null if nothing
+  /// readable remains.
+  static String? plainText(String? html) {
+    if (html == null) return null;
+    final text = html
+        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll('&apos;', "'")
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll(RegExp(r'[ \t]+\n'), '\n')
+        .trim();
+    return text.isEmpty ? null : text;
+  }
+}
+
 class Playlist {
   const Playlist({
     required this.id,

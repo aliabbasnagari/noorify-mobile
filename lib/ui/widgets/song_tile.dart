@@ -7,6 +7,7 @@ import '../../state/player_controller.dart';
 import '../../state/playlists_revision.dart';
 import '../../state/session_controller.dart';
 import '../../state/star_controller.dart';
+import '../adaptive/platform_caps.dart';
 import '../util.dart';
 import 'cover_art.dart';
 import 'playing_bars.dart';
@@ -48,6 +49,7 @@ class SongTile extends StatelessWidget {
     );
     final starred =
         context.select<StarController, bool>((s) => s.isStarred(song));
+    final caps = context.read<PlatformCaps>();
     final isCurrent = current == song.id;
     final isPlaying =
         isCurrent && context.select<PlayerController, bool>((p) => p.isPlaying);
@@ -129,14 +131,15 @@ class SongTile extends StatelessWidget {
                 child: Text(
                     starred ? 'Remove from favorites' : 'Add to favorites'),
               ),
-              if (dl.done)
-                const PopupMenuItem(
-                  value: _SongAction.removeDownload,
-                  child: Text('Remove download'),
-                )
-              else
-                const PopupMenuItem(
-                    value: _SongAction.download, child: Text('Download')),
+              if (caps.supportsDownloads)
+                if (dl.done)
+                  const PopupMenuItem(
+                    value: _SongAction.removeDownload,
+                    child: Text('Remove download'),
+                  )
+                else
+                  const PopupMenuItem(
+                      value: _SongAction.download, child: Text('Download')),
               ...extraActions,
             ],
           ),
@@ -261,9 +264,9 @@ Future<void> showAddToPlaylistSheet(
 }
 
 /// Simple single-field text prompt. Returns null if cancelled or empty.
-Future<String?> promptForText(
-    BuildContext context, String title, String label) async {
-  final controller = TextEditingController();
+Future<String?> promptForText(BuildContext context, String title, String label,
+    {String? initialText}) async {
+  final controller = TextEditingController(text: initialText);
   // Closing the dialog's route while its autofocused TextField still has
   // the on-screen keyboard mid-transition can hit a Flutter framework
   // assertion ("_dependents.isEmpty": is not true). Unfocusing first isn't

@@ -7,6 +7,7 @@ import '../../state/download_controller.dart';
 import '../../state/player_controller.dart';
 import '../../state/smart_playlist_store.dart';
 import '../../state/sync_controller.dart';
+import '../adaptive/platform_caps.dart';
 import '../util.dart';
 import '../widgets/song_tile.dart';
 import '../routing/navigation.dart';
@@ -83,6 +84,7 @@ class SmartPlaylistPage extends StatelessWidget {
                                 label: const Text('Shuffle'),
                               ),
                             ),
+                            if (context.read<PlatformCaps>().supportsDownloads)
                             IconButton(
                               tooltip: 'Download all',
                               icon: const Icon(Icons.download_outlined),

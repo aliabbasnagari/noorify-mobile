@@ -3,7 +3,11 @@ import '../../settings/settings_models.dart';
 import '../../smart/smart_filter.dart';
 
 /// What a row in Your Library opens.
-enum LibraryKind { favorites, playlist, smartPlaylist, artist, album }
+///
+/// [shortcut] rows are the fixed entries that used to be tiles on the Library
+/// page (all songs, downloads and the smart playlists overview); see
+/// [LibraryEntry.shortcutSongs] and friends.
+enum LibraryKind { favorites, shortcut, playlist, smartPlaylist, artist, album }
 
 /// The filter chips above the list. None selected shows everything.
 enum LibraryFilter {
@@ -32,25 +36,41 @@ class LibraryEntry {
   final String subtitle;
   final String? coverArt;
 
-  /// Favorites is pinned to the top whatever the sort.
-  bool get pinned => kind == LibraryKind.favorites;
+  /// The ids of the [LibraryKind.shortcut] entries, in display order.
+  static const shortcutSongs = 'songs';
+  static const shortcutDownloads = 'downloads';
+  static const shortcutSmart = 'smart';
+  static const shortcutOrder = [
+    shortcutSongs,
+    shortcutDownloads,
+    shortcutSmart,
+  ];
+
+  /// Where this entry sits among the rows that are always first (Favorites,
+  /// then the shortcuts), or null for an ordinary row.
+  int? get pinRank => switch (kind) {
+        LibraryKind.favorites => 0,
+        LibraryKind.shortcut => 1 + shortcutOrder.indexOf(id),
+        _ => null,
+      };
+
+  bool get pinned => pinRank != null;
 
   /// Matches the keys `LibraryRecents` stores and the keys offline collections
   /// use (`album:al1`, `playlist:42`), so the three line up.
-  String get key =>
-      kind == LibraryKind.favorites ? 'favorites' : '${_prefix(kind)}:$id';
-
-  static String _prefix(LibraryKind kind) => switch (kind) {
+  String get key => switch (kind) {
         LibraryKind.favorites => 'favorites',
-        LibraryKind.playlist => 'playlist',
-        LibraryKind.smartPlaylist => 'smart',
-        LibraryKind.artist => 'artist',
-        LibraryKind.album => 'album',
+        LibraryKind.shortcut => 'shortcut:$id',
+        LibraryKind.playlist => 'playlist:$id',
+        LibraryKind.smartPlaylist => 'smart:$id',
+        LibraryKind.artist => 'artist:$id',
+        LibraryKind.album => 'album:$id',
       };
 
   /// The page this entry opens, relative to a tab (see `AppRoutes.branchPath`).
   String get detailPath => switch (kind) {
         LibraryKind.favorites => 'favorites',
+        LibraryKind.shortcut => id,
         LibraryKind.playlist =>
           'playlist/${Uri.encodeComponent(id)}?name=${Uri.encodeQueryComponent(title)}',
         LibraryKind.smartPlaylist => 'smart/${Uri.encodeComponent(id)}',
@@ -59,10 +79,12 @@ class LibraryEntry {
       };
 }
 
-/// Everything Your Library can list, in no particular order. Missing sources
+/// Everything Your Library can list, in no particular order. [includeDownloads]
+/// is false where downloads are not possible (a browser). Missing sources
 /// (still loading, or the server was unreachable) are simply left out, so
-/// Favorites and smart playlists still show offline.
+/// Favorites, the shortcuts and smart playlists still show offline.
 List<LibraryEntry> buildLibraryEntries({
+  bool includeDownloads = true,
   List<Playlist> playlists = const [],
   List<SmartPlaylist> smartPlaylists = const [],
   List<Artist> artists = const [],
@@ -74,6 +96,25 @@ List<LibraryEntry> buildLibraryEntries({
         id: 'favorites',
         title: 'Favorites',
         subtitle: 'Playlist • Starred songs',
+      ),
+      const LibraryEntry(
+        kind: LibraryKind.shortcut,
+        id: LibraryEntry.shortcutSongs,
+        title: 'Songs',
+        subtitle: 'Every song in your library',
+      ),
+      if (includeDownloads)
+        const LibraryEntry(
+          kind: LibraryKind.shortcut,
+          id: LibraryEntry.shortcutDownloads,
+          title: 'Downloads',
+          subtitle: 'Available offline',
+        ),
+      const LibraryEntry(
+        kind: LibraryKind.shortcut,
+        id: LibraryEntry.shortcutSmart,
+        title: 'Smart playlists',
+        subtitle: 'Playlists made from rules',
       ),
       for (final p in playlists)
         LibraryEntry(
@@ -88,7 +129,8 @@ List<LibraryEntry> buildLibraryEntries({
           kind: LibraryKind.smartPlaylist,
           id: p.id,
           title: p.title,
-          subtitle: 'Smart playlist • ${_count(p.filter.rules.length, 'rule')}',
+          subtitle:
+              'Smart playlist • ${_count(p.filter.rules.length, 'rule')}',
         ),
       for (final a in artists)
         LibraryEntry(
@@ -113,9 +155,10 @@ String _count(int n, String noun) => '$n $noun${n == 1 ? '' : 's'}';
 /// The entries to show for the chosen [filter], search [query] and [sort].
 ///
 /// [opened] maps entry keys to when they were last opened (milliseconds), and
-/// [offlineKeys] are the keys kept for offline use. Favorites is always first.
-/// Under [LibrarySort.recents], opened items come first, most recent first,
-/// then the rest A to Z.
+/// [offlineKeys] are the keys kept for offline use. Favorites and the
+/// shortcuts are always first, in that order. Under [LibrarySort.recents],
+/// opened items come next, most recent first, then the rest A to Z. The
+/// shortcuts only show when no filter is chosen.
 List<LibraryEntry> visibleLibraryEntries(
   List<LibraryEntry> entries, {
   LibraryFilter? filter,
@@ -138,7 +181,13 @@ List<LibraryEntry> visibleLibraryEntries(
       a.title.toLowerCase().compareTo(b.title.toLowerCase());
 
   shown.sort((a, b) {
-    if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
+    final ar = a.pinRank;
+    final br = b.pinRank;
+    if (ar != null || br != null) {
+      if (ar == null) return 1;
+      if (br == null) return -1;
+      return ar.compareTo(br);
+    }
     if (sort == LibrarySort.recents) {
       final at = opened[a.key];
       final bt = opened[b.key];

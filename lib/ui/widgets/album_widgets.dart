@@ -5,6 +5,7 @@ import '../../models/models.dart';
 import '../../state/download_controller.dart';
 import '../../state/session_controller.dart';
 import '../../subsonic/subsonic_client.dart';
+import '../adaptive/layout.dart';
 import '../routing/navigation.dart';
 import '../util.dart';
 import 'cover_art.dart';
@@ -66,19 +67,22 @@ class AlbumCard extends StatelessWidget {
   }
 }
 
-/// A titled horizontal row of albums for the home screen. Hidden entirely
-/// when the server returns nothing (cf. Symfonium's `hideIfEmpty`).
+/// A titled row of albums for the home screen. Hidden entirely when the server
+/// returns nothing (cf. Symfonium's `hideIfEmpty`). On wide windows it fills
+/// the row and pages with arrows; see [AdaptiveShelf].
 class AlbumShelf extends StatefulWidget {
   const AlbumShelf({
     super.key,
     required this.title,
     required this.type,
     this.count = 20,
+    this.onShowAll,
   });
 
   final String title;
   final AlbumListType type;
   final int count;
+  final VoidCallback? onShowAll;
 
   @override
   State<AlbumShelf> createState() => _AlbumShelfState();
@@ -106,21 +110,17 @@ class _AlbumShelfState extends State<AlbumShelf> {
         final albums = snap.data;
         if (albums != null && albums.isEmpty) return const SizedBox.shrink();
 
-        Widget body;
-        if (snap.hasError) {
-          body = ErrorRetry(error: snap.error!, onRetry: () => setState(_load));
-        } else if (albums == null) {
-          body = const Center(child: CircularProgressIndicator());
-        } else {
-          body = ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+        if (albums != null) {
+          return AdaptiveShelf(
+            title: widget.title,
             itemCount: albums.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, i) => AlbumCard(album: albums[i], width: 150),
+            onShowAll: widget.onShowAll,
+            itemBuilder: (_, i, width) =>
+                AlbumCard(album: albums[i], width: width),
           );
         }
 
+        // Still loading, or failed: keep the title so the page doesn't jump.
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -129,7 +129,13 @@ class _AlbumShelfState extends State<AlbumShelf> {
               child: Text(widget.title,
                   style: Theme.of(context).textTheme.titleLarge),
             ),
-            SizedBox(height: 210, child: body),
+            SizedBox(
+              height: 210,
+              child: snap.hasError
+                  ? ErrorRetry(
+                      error: snap.error!, onRetry: () => setState(_load))
+                  : const Center(child: CircularProgressIndicator()),
+            ),
           ],
         );
       },
@@ -207,16 +213,7 @@ class _PagedAlbumGridState extends State<PagedAlbumGrid> {
     return GridView.builder(
       controller: _scroll,
       padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 180,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 12,
-        // Leaves more headroom than the art + two text lines strictly need
-        // (was tuned tight enough that Manrope's taller line-height than the
-        // old default font overflowed by ~2px) so a larger text-scale
-        // accessibility setting doesn't reintroduce the same overflow.
-        childAspectRatio: 0.72,
-      ),
+      gridDelegate: ArtGridDelegate.of(context, maxTileWidth: 180),
       itemCount: _albums.length,
       itemBuilder: (_, i) => AlbumCard(album: _albums[i]),
     );

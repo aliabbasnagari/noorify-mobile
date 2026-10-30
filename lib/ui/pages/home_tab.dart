@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import '../../settings/settings_models.dart';
 import '../../state/settings_controller.dart';
 import '../../subsonic/subsonic_client.dart';
-import '../widgets/album_widgets.dart';
+import '../adaptive/layout.dart';
 import '../routing/navigation.dart';
+import '../widgets/album_widgets.dart';
+import '../widgets/quick_access.dart';
 
 const homeRowTypes = <String, AlbumListType>{
   'recent': AlbumListType.recent,
@@ -15,6 +17,9 @@ const homeRowTypes = <String, AlbumListType>{
   'starred': AlbumListType.starred,
 };
 
+/// Home: the albums played most recently as quick-access tiles, then the
+/// configurable shelves (see `HomeLayout`), each with a "Show all" link to the
+/// full list. Shelves fill the width on wide windows.
 class HomeTab extends StatelessWidget {
   const HomeTab({super.key});
 
@@ -32,19 +37,26 @@ class HomeTab extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 16),
-        children: [
-          for (final row in layout.rows)
-            if (row.visible && homeRowTypes.containsKey(row.id))
-              AlbumShelf(
-                // Rebuild (and refetch) when the item count changes.
-                key: ValueKey('${row.id}:${row.count}'),
-                title: homeRowTitles[row.id]!,
-                type: homeRowTypes[row.id]!,
-                count: row.count,
-              ),
-        ],
+      body: ContentFrame(
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 16),
+          children: [
+            const QuickAccessGrid(),
+            for (final row in layout.rows)
+              if (row.visible && homeRowTypes.containsKey(row.id))
+                AlbumShelf(
+                  // Rebuild (and refetch) when the item count changes.
+                  key: ValueKey('${row.id}:${row.count}'),
+                  title: homeRowTitles[row.id]!,
+                  type: homeRowTypes[row.id]!,
+                  count: row.count,
+                  // A shuffled list has no stable "all" to page through.
+                  onShowAll: homeRowTypes[row.id] == AlbumListType.random
+                      ? null
+                      : () => context.openAlbums(type: homeRowTypes[row.id]),
+                ),
+          ],
+        ),
       ),
     );
   }
