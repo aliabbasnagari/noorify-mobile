@@ -81,6 +81,17 @@ void main() {
       expect(sent.queryParametersAll.containsKey('songIdToAdd'), isFalse);
     });
 
+    test('reorderPlaylist replaces the songs, in order, in one request',
+        () async {
+      await clientReplying().reorderPlaylist('p1', ['s3', 's1', 's2']);
+
+      expect(endpoint(sent), 'createPlaylist.view');
+      expect(sent.queryParameters['playlistId'], 'p1');
+      expect(sent.queryParametersAll['songId'], ['s3', 's1', 's2']);
+      expect(sent.queryParametersAll.containsKey('name'), isFalse,
+          reason: 'a name would make a new playlist');
+    });
+
     test('deletePlaylist sends the id', () async {
       await clientReplying().deletePlaylist('p1');
 
@@ -293,8 +304,7 @@ void main() {
       expect(info.imageUrl, 'https://img.example/s.jpg');
     });
 
-    test('an artist the server knows nothing about gives empty info',
-        () async {
+    test('an artist the server knows nothing about gives empty info', () async {
       final info =
           await clientReplying({'artistInfo2': {}}).getArtistInfo('a1');
 

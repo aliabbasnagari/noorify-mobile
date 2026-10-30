@@ -254,6 +254,7 @@ void main() {
   group('playlist page', () {
     var serverName = 'Road trip';
     var songs = <Map<String, dynamic>>[];
+    var rejectReorder = false;
 
     http.Response playlistServer(http.Request request) {
       switch (request.url.pathSegments.last) {
@@ -269,12 +270,30 @@ void main() {
         case 'updatePlaylist.view':
           final name = request.url.queryParameters['name'];
           if (name != null) serverName = name;
+        case 'createPlaylist.view':
+          if (rejectReorder) {
+            return http.Response(
+              jsonEncode({
+                'subsonic-response': {
+                  'status': 'failed',
+                  'error': {'code': 0, 'message': 'not allowed'},
+                },
+              }),
+              200,
+            );
+          }
+          // Keep what the client saved, as a server would.
+          final ids = request.url.queryParametersAll['songId'] ?? const [];
+          songs = [
+            for (final id in ids) songs.firstWhere((s) => s['id'] == id)
+          ];
       }
       return defaultServer(request);
     }
 
     setUp(() {
       serverName = 'Road trip';
+      rejectReorder = false;
       songs = [song('s1', 'First Song'), song('s2', 'Second Song')];
     });
 
@@ -299,6 +318,134 @@ void main() {
 
       expect(app.player.queueSongs.map((s) => s.id), ['s1', 's2']);
       expect(app.player.queueSource, 'Road trip');
+    });
+
+    /// The titles of the songs in the page, top to bottom.
+    List<String> titlesInOrder(WidgetTester tester) {
+      final rows = [
+        for (final t in ['First Song', 'Second Song', 'Third Song'])
+          if (find.text(t).evaluate().isNotEmpty)
+            (t, tester.getTopLeft(find.text(t).first).dy),
+      ]..sort((a, b) => a.$2.compareTo(b.$2));
+      return [for (final r in rows) r.$1];
+    }
+
+    Future<void> startReordering(WidgetTester tester) async {
+      await openPage(tester, '/home/playlist/p1?name=Road+trip',
+          server: playlistServer);
+      await tester.tap(find.byTooltip('Reorder songs'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a playlist of one song has nothing to reorder',
+        (tester) async {
+      songs = [song('s1', 'First Song')];
+      await openPage(tester, '/home/playlist/p1?name=Road+trip',
+          server: playlistServer);
+
+      expect(find.byTooltip('Reorder songs'), findsNothing);
+    });
+
+    testWidgets('Reorder songs swaps the rows for draggable ones and back',
+        (tester) async {
+      await startReordering(tester);
+
+      expect(find.byType(ReorderableListView), findsOneWidget);
+      expect(find.byIcon(Icons.drag_handle), findsNWidgets(2));
+      expect(find.byTooltip('Done reordering'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Done reordering'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ReorderableListView), findsNothing);
+      expect(find.byTooltip('Reorder songs'), findsOneWidget);
+    });
+
+    testWidgets('moving a song shows the new order and saves it',
+        (tester) async {
+      await startReordering(tester);
+
+      tester
+          .widget<ReorderableListView>(find.byType(ReorderableListView))
+          .onReorderItem!(0, 1);
+      await tester.pumpAndSettle();
+
+      expect(titlesInOrder(tester), ['Second Song', 'First Song']);
+      final save = requestsTo('createPlaylist.view').single;
+      expect(save.queryParameters['playlistId'], 'p1');
+      expect(save.queryParametersAll['songId'], ['s2', 's1']);
+
+      // Playing afterwards uses the new order.
+      await tester.tap(find.byTooltip('Done reordering'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Play'));
+      await tester.pump();
+      expect(app.player.queueSongs.map((s) => s.id), ['s2', 's1']);
+    });
+
+    testWidgets('dragging a handle moves the row', (tester) async {
+      await startReordering(tester);
+
+      // Press the first handle, drag it past the second row in steps, let go.
+      final gesture = await tester
+          .startGesture(tester.getCenter(find.byIcon(Icons.drag_handle).first));
+      await tester.pump(const Duration(milliseconds: 100));
+      for (var step = 0; step < 8; step++) {
+        await gesture.moveBy(const Offset(0, 20));
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(titlesInOrder(tester), ['Second Song', 'First Song']);
+      expect(requestsTo('createPlaylist.view'), hasLength(1));
+    });
+
+    testWidgets('a move to the same place saves nothing', (tester) async {
+      await startReordering(tester);
+
+      tester
+          .widget<ReorderableListView>(find.byType(ReorderableListView))
+          .onReorderItem!(1, 1);
+      await tester.pumpAndSettle();
+
+      expect(requestsTo('createPlaylist.view'), isEmpty);
+      expect(titlesInOrder(tester), ['First Song', 'Second Song']);
+    });
+
+    testWidgets('if the server refuses, the order goes back and says why',
+        (tester) async {
+      rejectReorder = true;
+      await startReordering(tester);
+
+      tester
+          .widget<ReorderableListView>(find.byType(ReorderableListView))
+          .onReorderItem!(0, 1);
+      await tester.pumpAndSettle();
+
+      expect(titlesInOrder(tester), ['First Song', 'Second Song']);
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.textContaining('not allowed'), findsOneWidget);
+    });
+
+    testWidgets('removing a song afterwards uses the saved positions',
+        (tester) async {
+      await startReordering(tester);
+      tester
+          .widget<ReorderableListView>(find.byType(ReorderableListView))
+          .onReorderItem!(0, 1);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Done reordering'));
+      await tester.pumpAndSettle();
+
+      // The first row is now "Second Song" (server index 0 after the save).
+      await tester.tap(find.byType(PopupMenuButton<Object>).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove from playlist'));
+      await tester.pumpAndSettle();
+
+      final removal = requestsTo('updatePlaylist.view').last;
+      expect(removal.queryParametersAll['songIndexToRemove'], ['0']);
     });
 
     testWidgets('an empty playlist says so and cannot be played',

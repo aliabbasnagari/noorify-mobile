@@ -343,6 +343,13 @@ class SubsonicClient {
         'songIndexToRemove': indexes,
       });
 
+  /// Puts the songs of a playlist in the order of [songIds], which must be
+  /// all of its songs. There is no "move" call, so this replaces the contents
+  /// in one request (`createPlaylist` with an existing `playlistId`), which
+  /// cannot leave the playlist half-changed if it fails.
+  Future<void> reorderPlaylist(String playlistId, List<String> songIds) =>
+      _call('createPlaylist', {'playlistId': playlistId, 'songId': songIds});
+
   Future<void> renamePlaylist(String playlistId, String name) =>
       _call('updatePlaylist', {'playlistId': playlistId, 'name': name});
 

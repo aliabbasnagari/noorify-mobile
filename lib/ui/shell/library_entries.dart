@@ -129,8 +129,7 @@ List<LibraryEntry> buildLibraryEntries({
           kind: LibraryKind.smartPlaylist,
           id: p.id,
           title: p.title,
-          subtitle:
-              'Smart playlist • ${_count(p.filter.rules.length, 'rule')}',
+          subtitle: 'Smart playlist • ${_count(p.filter.rules.length, 'rule')}',
         ),
       for (final a in artists)
         LibraryEntry(
@@ -149,6 +148,36 @@ List<LibraryEntry> buildLibraryEntries({
           coverArt: a.coverArt,
         ),
     ];
+
+/// The [LibraryEntry.key] of the library item the page at [path] shows, or null
+/// when it is not one (Home, Search, Settings, the album list...). [path] is a
+/// route path such as `/library/album/al1`; the tab it sits under is ignored,
+/// so an album opened from Home still counts as open.
+String? libraryEntryKeyForPath(String path) {
+  final segments = Uri.parse(path).pathSegments;
+  if (segments.length < 2) return null;
+  final page = segments.sublist(1);
+  final id = page.length > 1 ? page[1] : null;
+
+  switch (page[0]) {
+    case 'favorites':
+      return 'favorites';
+    case LibraryEntry.shortcutSongs:
+      return 'shortcut:${LibraryEntry.shortcutSongs}';
+    case LibraryEntry.shortcutDownloads:
+      return 'shortcut:${LibraryEntry.shortcutDownloads}';
+    case 'smart':
+      if (id == null) return 'shortcut:${LibraryEntry.shortcutSmart}';
+      return id == 'new' ? null : 'smart:$id';
+    case 'playlist':
+      return id == null ? null : 'playlist:$id';
+    case 'artist':
+      return id == null ? null : 'artist:$id';
+    case 'album':
+      return id == null ? null : 'album:$id';
+  }
+  return null;
+}
 
 String _count(int n, String noun) => '$n $noun${n == 1 ? '' : 's'}';
 

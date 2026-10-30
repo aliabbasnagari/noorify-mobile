@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:noorify/models/models.dart';
 import 'package:noorify/ui/routing/app_router.dart';
 import 'package:noorify/ui/shell/library_sidebar.dart';
+import 'package:noorify/ui/widgets/album_widgets.dart';
+import 'package:noorify/ui/widgets/library_browser.dart';
 
 import 'support/test_app.dart';
 
@@ -74,6 +76,71 @@ void main() {
 
       expect(currentUri(tester).path, '/home/playlist/p1');
       expect(currentUri(tester).queryParameters['name'], 'Road trip');
+    });
+
+    /// Whether the sidebar row titled [title] is highlighted as open.
+    bool isOpen(WidgetTester tester, String title) => tester
+        .widget<ListTile>(find.ancestor(
+            of: inSidebar(title), matching: find.byType(ListTile)))
+        .selected;
+
+    testWidgets('the open page is highlighted, and only that one',
+        (tester) async {
+      await pumpDesktop(tester);
+      expect(isOpen(tester, 'Road trip'), isFalse);
+
+      await tester.tap(inSidebar('Road trip'));
+      await tester.pumpAndSettle();
+
+      expect(isOpen(tester, 'Road trip'), isTrue);
+      expect(isOpen(tester, 'Calm'), isFalse);
+      expect(isOpen(tester, 'Favorites'), isFalse);
+
+      await tester.tap(inSidebar('Calm'));
+      await tester.pumpAndSettle();
+
+      expect(isOpen(tester, 'Calm'), isTrue);
+      expect(isOpen(tester, 'Road trip'), isFalse);
+    });
+
+    testWidgets('the highlight goes when the page is left', (tester) async {
+      await pumpDesktop(tester);
+      await tester.tap(inSidebar('Road trip'));
+      await tester.pumpAndSettle();
+      expect(isOpen(tester, 'Road trip'), isTrue);
+
+      await tester.tap(find.byTooltip('Home'));
+      await tester.pumpAndSettle();
+
+      expect(isOpen(tester, 'Road trip'), isFalse);
+    });
+
+    testWidgets('an album opened from a card is highlighted too',
+        (tester) async {
+      await pumpDesktop(tester);
+
+      // The Home page's album card, not the sidebar row.
+      final card = find.widgetWithText(AlbumCard, 'Test Album').first;
+      await tester.ensureVisible(card);
+      await tester.tap(card);
+      await tester.pumpAndSettle();
+
+      expect(currentUri(tester).path, '/home/album/al1');
+      expect(isOpen(tester, 'Test Album'), isTrue);
+    });
+
+    testWidgets('the collapsed strip outlines the open item', (tester) async {
+      await pumpDesktop(tester);
+      await tester.tap(inSidebar('Road trip'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Collapse your library'));
+      await tester.pumpAndSettle();
+
+      final frames = tester
+          .widgetList<SelectedFrame>(find.byType(SelectedFrame))
+          .where((f) => f.selected);
+      expect(frames, hasLength(1));
     });
 
     testWidgets('a filter chip narrows the list and tapping it again clears it',

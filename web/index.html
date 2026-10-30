@@ -18,21 +18,42 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Noorify: a music player for your own Subsonic or OpenSubsonic server.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#121212">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="noorify">
+  <meta name="apple-mobile-web-app-title" content="Noorify">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>noorify</title>
+  <title>Noorify</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- The page is dark from the first paint, so there is no white flash while
+       the app downloads; the spinner is covered once the app draws. -->
+  <style>
+    html, body { margin: 0; height: 100%; background: #121212; }
+    #loading {
+      position: fixed; inset: 0; display: flex; align-items: center;
+      justify-content: center; flex-direction: column; gap: 16px;
+      color: #b3b3b3; font: 500 14px system-ui, sans-serif;
+    }
+    #loading i {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 3px solid #333; border-top-color: #1db954;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { #loading i { animation: none; } }
+  </style>
 </head>
 <body>
+  <div id="loading" aria-hidden="true"><i></i>Noorify</div>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

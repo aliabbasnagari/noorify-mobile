@@ -19,8 +19,11 @@ class LibraryData extends ChangeNotifier {
     _revision.addListener(refresh);
   }
 
-  /// The most albums loaded (one request, A to Z).
-  static const albumLimit = 500;
+  /// Albums are fetched A to Z in requests of this many...
+  static const albumPageSize = 500;
+
+  /// ...up to this many in all, so a huge library cannot keep loading forever.
+  static const maxAlbums = 10000;
 
   final PlaylistsRevision _revision;
 
@@ -83,7 +86,7 @@ class LibraryData extends ChangeNotifier {
     final results = await Future.wait<Object?>([
       attempt(client.getPlaylists()),
       attempt(client.getArtists()),
-      attempt(client.getAlbumList(AlbumListType.alphabetical, size: albumLimit)),
+      attempt(_loadAlbums(client, generation, () => failed = true)),
     ]);
     // A newer refresh, or a different account, took over meanwhile.
     if (generation != _generation) return;
@@ -94,6 +97,44 @@ class LibraryData extends ChangeNotifier {
     _someFailed = failed;
     _loading = false;
     notifyListeners();
+  }
+
+  /// Every album, A to Z, a page at a time. If a later page fails the albums
+  /// already fetched are kept and [onPartial] is called, so the library shows
+  /// most of what it has and offers a retry; if the first page fails the error
+  /// is thrown like any other failed source.
+  Future<List<Album>> _loadAlbums(
+    SubsonicClient client,
+    int generation,
+    VoidCallback onPartial,
+  ) async {
+    final byId = <String, Album>{};
+    var offset = 0;
+    while (offset < maxAlbums) {
+      final List<Album> page;
+      try {
+        page = await client.getAlbumList(
+          AlbumListType.alphabetical,
+          size: albumPageSize,
+          offset: offset,
+        );
+      } on Object {
+        if (offset == 0) rethrow;
+        onPartial();
+        break;
+      }
+      final before = byId.length;
+      for (final a in page) {
+        byId[a.id] = a;
+      }
+      // A short page is the last one; no new ids means the server ignored the
+      // offset, and asking again would loop forever.
+      if (page.length < albumPageSize || byId.length == before) break;
+      // Superseded by a newer refresh: nobody will use these albums.
+      if (generation != _generation) break;
+      offset += albumPageSize;
+    }
+    return byId.values.toList();
   }
 
   @override

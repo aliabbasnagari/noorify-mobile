@@ -101,7 +101,7 @@ void main() {
     expect(data.hasAnyData, isTrue);
   });
 
-  test('albums are requested A to Z, up to the limit', () async {
+  test('albums are requested A to Z, a page at a time', () async {
     final requests = <Uri>[];
     data.attach(SubsonicClient(
       config,
@@ -115,7 +115,100 @@ void main() {
     final albumRequest =
         requests.firstWhere((u) => u.pathSegments.last == 'getAlbumList2.view');
     expect(albumRequest.queryParameters['type'], 'alphabeticalByName');
-    expect(albumRequest.queryParameters['size'], '${LibraryData.albumLimit}');
+    expect(
+        albumRequest.queryParameters['size'], '${LibraryData.albumPageSize}');
+  });
+
+  group('albums past the first page', () {
+    /// A server holding [total] albums that honours `offset` and `size`, or
+    /// (with [honourOffset] false) always answers with the first page. A page
+    /// at an offset in [failAt] is an error.
+    MockClient albumServer(
+      int total, {
+      bool honourOffset = true,
+      Set<int> failAt = const {},
+      List<int>? offsets,
+    }) =>
+        MockClient((req) async {
+          if (req.url.pathSegments.last != 'getAlbumList2.view') {
+            return ok({});
+          }
+          final offset = honourOffset
+              ? int.parse(req.url.queryParameters['offset'] ?? '0')
+              : 0;
+          offsets?.add(offset);
+          if (failAt.contains(offset)) return http.Response('boom', 500);
+          final size = int.parse(req.url.queryParameters['size']!);
+          final end = (offset + size).clamp(0, total);
+          return ok({
+            'albumList2': {
+              'album': [
+                for (var i = offset; i < end; i++)
+                  {'id': 'al$i', 'name': 'Album $i'},
+              ],
+            },
+          });
+        });
+
+    SubsonicClient clientFor(MockClient mock) =>
+        SubsonicClient(config, httpClient: mock);
+
+    test('are all loaded, one request per page', () async {
+      final offsets = <int>[];
+      data.attach(clientFor(albumServer(1200, offsets: offsets)));
+      await pumpEventQueue();
+
+      expect(data.albums, hasLength(1200));
+      expect(offsets, [0, 500, 1000]);
+      expect(data.someFailed, isFalse);
+    });
+
+    test('an exact multiple of the page size costs one extra, empty request',
+        () async {
+      final offsets = <int>[];
+      data.attach(clientFor(albumServer(1000, offsets: offsets)));
+      await pumpEventQueue();
+
+      expect(data.albums, hasLength(1000));
+      expect(offsets, [0, 500, 1000]);
+    });
+
+    test('a server that ignores the offset does not loop forever', () async {
+      final offsets = <int>[];
+      data.attach(
+          clientFor(albumServer(900, honourOffset: false, offsets: offsets)));
+      await pumpEventQueue();
+
+      expect(data.albums, hasLength(500));
+      expect(offsets, [0, 0]);
+    });
+
+    test('a failed later page keeps the albums already loaded and flags it',
+        () async {
+      data.attach(clientFor(albumServer(1200, failAt: {500})));
+      await pumpEventQueue();
+
+      expect(data.albums, hasLength(500));
+      expect(data.someFailed, isTrue);
+      expect(data.isLoading, isFalse);
+    });
+
+    test('a failed first page leaves the albums unloaded', () async {
+      data.attach(clientFor(albumServer(1200, failAt: {0})));
+      await pumpEventQueue();
+
+      expect(data.albums, isNull);
+      expect(data.someFailed, isTrue);
+    });
+
+    test('stops at the overall cap', () async {
+      final offsets = <int>[];
+      data.attach(clientFor(albumServer(20000, offsets: offsets)));
+      await pumpEventQueue();
+
+      expect(data.albums, hasLength(LibraryData.maxAlbums));
+      expect(offsets.last, LibraryData.maxAlbums - LibraryData.albumPageSize);
+    });
   });
 
   test('loading never notifies during attach, only afterwards', () async {

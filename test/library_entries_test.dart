@@ -243,4 +243,53 @@ void main() {
       expect(titles(shown).sublist(4, 6), ['abba', 'Beck']);
     });
   });
+
+  group('libraryEntryKeyForPath', () {
+    test('maps each detail page to its entry key, whichever tab it is in', () {
+      for (final tab in ['home', 'search', 'library']) {
+        expect(libraryEntryKeyForPath('/$tab/album/al1'), 'album:al1');
+        expect(libraryEntryKeyForPath('/$tab/artist/a1'), 'artist:a1');
+        expect(libraryEntryKeyForPath('/$tab/playlist/p1'), 'playlist:p1');
+        expect(libraryEntryKeyForPath('/$tab/favorites'), 'favorites');
+        expect(libraryEntryKeyForPath('/$tab/songs'), 'shortcut:songs');
+        expect(libraryEntryKeyForPath('/$tab/downloads'), 'shortcut:downloads');
+      }
+    });
+
+    test('smart playlists: the overview, one playlist, its editor', () {
+      expect(libraryEntryKeyForPath('/library/smart'), 'shortcut:smart');
+      expect(libraryEntryKeyForPath('/library/smart/s1'), 'smart:s1');
+      expect(libraryEntryKeyForPath('/library/smart/s1/edit'), 'smart:s1');
+      expect(libraryEntryKeyForPath('/library/smart/new'), isNull);
+    });
+
+    test('decodes ids, and agrees with the entry keys', () {
+      expect(libraryEntryKeyForPath('/home/playlist/a%20b'), 'playlist:a b');
+      for (final e in buildLibraryEntries(
+        playlists: const [Playlist(id: 'p 1', name: 'X', songCount: 1)],
+        artists: const [Artist(id: 'a1', name: 'A')],
+        albums: const [Album(id: 'al1', name: 'B')],
+      )) {
+        expect(
+            libraryEntryKeyForPath('/library/${e.detailPath.split('?').first}'),
+            e.key,
+            reason: e.title);
+      }
+    });
+
+    test('pages that are not library items give null', () {
+      for (final path in [
+        '/home',
+        '/library',
+        '/home/albums',
+        '/home/artists',
+        '/library/settings',
+        '/home/playlist',
+        '/now-playing',
+        '/',
+      ]) {
+        expect(libraryEntryKeyForPath(path), isNull, reason: path);
+      }
+    });
+  });
 }

@@ -31,14 +31,46 @@ class _PlaylistPageState extends State<PlaylistPage> {
   /// Starts as the name passed in, then follows renames and the server's name.
   late String _name = widget.name;
 
+  /// Whether the songs are shown as a list that can be dragged into order.
+  bool _reordering = false;
+
+  /// The songs in the order the user dragged them to, shown at once while the
+  /// server is told. Null means the order the server last sent.
+  List<Song>? _order;
+
   @override
   void initState() {
     super.initState();
     _load();
   }
 
-  void _load() => _future =
-      context.read<SessionController>().client!.getPlaylist(widget.playlistId);
+  void _load() {
+    _order = null;
+    _future = context
+        .read<SessionController>()
+        .client!
+        .getPlaylist(widget.playlistId);
+  }
+
+  /// Moves a song to [newIndex] (its place once it has been lifted out, as
+  /// `onReorderItem` reports it) and saves the new order. The list changes immediately; if
+  /// the server refuses, it goes back to how it was and the error is shown.
+  Future<void> _reorder(List<Song> songs, int oldIndex, int newIndex) async {
+    if (newIndex == oldIndex) return;
+    final client = context.read<SessionController>().client!;
+    final moved = [...songs];
+    moved.insert(newIndex, moved.removeAt(oldIndex));
+    setState(() => _order = moved);
+    try {
+      await client.reorderPlaylist(widget.playlistId, [
+        for (final s in moved) s.id,
+      ]);
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() => _order = songs);
+      showError(context, e);
+    }
+  }
 
   Future<void> _rename() async {
     final client = context.read<SessionController>().client!;
@@ -134,7 +166,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
             return const Center(child: CircularProgressIndicator());
           }
           final playlist = snap.data!;
-          final songs = playlist.songs;
+          final songs = _order ?? playlist.songs;
           // The server's name wins once known (it may differ from the URL's).
           final name = playlist.name.isEmpty ? _name : playlist.name;
           final total = songs.fold<int>(0, (sum, s) => sum + s.duration);
@@ -169,8 +201,17 @@ class _PlaylistPageState extends State<PlaylistPage> {
                     : () => player.playSongs(songs, source: name),
                 onShuffle: songs.isEmpty
                     ? null
-                    : () => player.playSongs(songs, shuffle: true, source: name),
+                    : () =>
+                        player.playSongs(songs, shuffle: true, source: name),
                 trailing: [
+                  if (songs.length > 1)
+                    IconButton(
+                      tooltip:
+                          _reordering ? 'Done reordering' : 'Reorder songs',
+                      icon: Icon(_reordering ? Icons.check : Icons.swap_vert),
+                      onPressed: () =>
+                          setState(() => _reordering = !_reordering),
+                    ),
                   OfflineToggleButton(
                     collection: OfflineCollection(
                       type: 'playlist',
@@ -185,6 +226,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
                 const Padding(
                   padding: EdgeInsets.all(32),
                   child: Center(child: Text('This playlist is empty')),
+                )
+              else if (_reordering)
+                _ReorderList(
+                  songs: songs,
+                  onReorder: (from, to) => _reorder(songs, from, to),
                 )
               else ...[
                 const TrackTableHeader(),
@@ -207,6 +253,46 @@ class _PlaylistPageState extends State<PlaylistPage> {
       ),
     );
   }
+}
+
+/// The playlist's songs with a handle on each row to drag it into place.
+class _ReorderList extends StatelessWidget {
+  const _ReorderList({required this.songs, required this.onReorder});
+
+  final List<Song> songs;
+  final void Function(int oldIndex, int newIndex) onReorder;
+
+  @override
+  Widget build(BuildContext context) => ReorderableListView.builder(
+        // The page itself scrolls; this list only lays its rows out.
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        buildDefaultDragHandles: false,
+        itemCount: songs.length,
+        onReorderItem: onReorder,
+        itemBuilder: (context, i) => ListTile(
+          key: ObjectKey(songs[i]),
+          leading: SizedBox(
+            width: 40,
+            child: CoverArt(
+                coverArt: songs[i].coverArt, size: 40, requestSize: 100),
+          ),
+          title: Text(songs[i].title,
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(songs[i].artist ?? '',
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+          trailing: ReorderableDragStartListener(
+            index: i,
+            child: const Tooltip(
+              message: 'Drag to reorder',
+              child: Padding(
+                padding: EdgeInsets.all(8),
+                child: Icon(Icons.drag_handle),
+              ),
+            ),
+          ),
+        ),
+      );
 }
 
 /// The cover shown for a playlist the server has no art for.

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../settings/settings_models.dart';
@@ -71,7 +72,11 @@ class LibrarySidebar extends StatelessWidget {
             ],
           ),
         ),
-        Expanded(child: LibraryBrowser(onOpen: onOpen)),
+        Expanded(
+          child: _OpenItem(
+            builder: (key) => LibraryBrowser(onOpen: onOpen, selectedKey: key),
+          ),
+        ),
       ],
     );
   }
@@ -93,6 +98,16 @@ class _Collapsed extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entries = watchLibraryEntries(context);
+    return _OpenItem(
+      builder: (openKey) => _strip(context, entries, openKey),
+    );
+  }
+
+  Widget _strip(
+    BuildContext context,
+    List<LibraryEntry> entries,
+    String? openKey,
+  ) {
     return Column(
       children: [
         const SizedBox(height: 8),
@@ -113,13 +128,37 @@ class _Collapsed extends StatelessWidget {
                 child: Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: LibraryEntryArt(entry: entries[i], size: 48),
+                  child: SelectedFrame(
+                    selected: entries[i].key == openKey,
+                    child: LibraryEntryArt(entry: entries[i], size: 44),
+                  ),
                 ),
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Rebuilds [builder] with the [LibraryEntry.key] of the library item the
+/// router is showing, as pages open and close (pages pushed on top included).
+class _OpenItem extends StatelessWidget {
+  const _OpenItem({required this.builder});
+
+  final Widget Function(String? openKey) builder;
+
+  @override
+  Widget build(BuildContext context) {
+    final router = GoRouter.of(context);
+    return ListenableBuilder(
+      listenable: Listenable.merge(
+        [router.routerDelegate, router.routeInformationProvider],
+      ),
+      builder: (context, _) => builder(
+        libraryEntryKeyForPath(router.routeInformationProvider.value.uri.path),
+      ),
     );
   }
 }

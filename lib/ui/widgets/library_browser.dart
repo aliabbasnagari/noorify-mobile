@@ -50,10 +50,13 @@ List<LibraryEntry> watchLibraryEntries(
 /// the data comes from [LibraryData] and the sort and view are remembered in
 /// [ShellLayoutSettings].
 class LibraryBrowser extends StatefulWidget {
-  const LibraryBrowser({super.key, required this.onOpen});
+  const LibraryBrowser({super.key, required this.onOpen, this.selectedKey});
 
   /// Called when a row is chosen.
   final void Function(LibraryEntry entry) onOpen;
+
+  /// The [LibraryEntry.key] of the row to highlight as the one open now.
+  final String? selectedKey;
 
   @override
   State<LibraryBrowser> createState() => _LibraryBrowserState();
@@ -110,6 +113,7 @@ class _LibraryBrowserState extends State<LibraryBrowser> {
                   : _EntryList(
                       entries: visible,
                       view: layout.libraryView,
+                      selectedKey: widget.selectedKey,
                       onOpen: widget.onOpen,
                     ),
         ),
@@ -128,12 +132,12 @@ class _FilterChips extends StatelessWidget {
   Widget build(BuildContext context) {
     final downloads = context.watch<PlatformCaps>().supportsDownloads;
     return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            for (final f in LibraryFilter.values)
-              if (downloads || f != LibraryFilter.downloaded)
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          for (final f in LibraryFilter.values)
+            if (downloads || f != LibraryFilter.downloaded)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: FilterChip(
@@ -143,9 +147,9 @@ class _FilterChips extends StatelessWidget {
                   onSelected: (on) => onSelected(on ? f : null),
                 ),
               ),
-          ],
-        ),
-      );
+        ],
+      ),
+    );
   }
 }
 
@@ -287,8 +291,10 @@ class _NothingFound extends StatelessWidget {
   Widget build(BuildContext context) => Center(
         child: Text(
           'Nothing here',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant),
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       );
 }
@@ -298,11 +304,13 @@ class _EntryList extends StatelessWidget {
     required this.entries,
     required this.view,
     required this.onOpen,
+    this.selectedKey,
   });
 
   final List<LibraryEntry> entries;
   final LibraryViewMode view;
   final void Function(LibraryEntry entry) onOpen;
+  final String? selectedKey;
 
   @override
   Widget build(BuildContext context) {
@@ -318,10 +326,13 @@ class _EntryList extends StatelessWidget {
           itemCount: entries.length,
           itemBuilder: (_, i) => Tooltip(
             message: entries[i].title,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: () => onOpen(entries[i]),
-              child: LibraryEntryArt(entry: entries[i], size: null),
+            child: SelectedFrame(
+              selected: entries[i].key == selectedKey,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () => onOpen(entries[i]),
+                child: LibraryEntryArt(entry: entries[i], size: null),
+              ),
             ),
           ),
         );
@@ -332,6 +343,7 @@ class _EntryList extends StatelessWidget {
             dense: true,
             visualDensity: VisualDensity.compact,
             leading: LibraryEntryArt(entry: entries[i], size: 32),
+            selected: entries[i].key == selectedKey,
             title: Text(entries[i].title,
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             onTap: () => onOpen(entries[i]),
@@ -342,6 +354,7 @@ class _EntryList extends StatelessWidget {
           itemCount: entries.length,
           itemBuilder: (_, i) => ListTile(
             leading: LibraryEntryArt(entry: entries[i], size: 48),
+            selected: entries[i].key == selectedKey,
             title: Text(entries[i].title,
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             subtitle: Text(entries[i].subtitle,
@@ -351,6 +364,29 @@ class _EntryList extends StatelessWidget {
         );
     }
   }
+}
+
+/// Outlines a tile that is the item open now, and leaves an equal transparent
+/// border otherwise so tiles do not shift when the selection changes.
+class SelectedFrame extends StatelessWidget {
+  const SelectedFrame({super.key, required this.selected, required this.child});
+
+  final bool selected;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            width: 2,
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Colors.transparent,
+          ),
+        ),
+        child: Padding(padding: const EdgeInsets.all(2), child: child),
+      );
 }
 
 /// Cover art for a library row: a heart tile for Favorites, an icon tile for
@@ -400,7 +436,10 @@ class LibraryEntryArt extends StatelessWidget {
       case LibraryKind.artist:
         art = ClipOval(
           child: CoverArt(
-              coverArt: entry.coverArt, size: size, requestSize: 100, radius: 0),
+              coverArt: entry.coverArt,
+              size: size,
+              requestSize: 100,
+              radius: 0),
         );
       case LibraryKind.playlist:
       case LibraryKind.album:
