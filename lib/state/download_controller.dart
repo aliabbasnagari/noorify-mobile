@@ -75,8 +75,21 @@ class _Job {
 /// Downloads original files with the Subsonic `download` endpoint and tracks
 /// them in a JSON index next to the files.
 class DownloadController extends ChangeNotifier {
+  /// [directoryProvider] returns the folder downloads live in (default: the
+  /// app-support directory) and [httpClientFactory] builds the client used for
+  /// each download attempt. Both exist so tests can use a temp directory and a
+  /// mock HTTP client.
+  DownloadController({
+    Future<Directory> Function()? directoryProvider,
+    http.Client Function()? httpClientFactory,
+  })  : _directoryProvider = directoryProvider ?? getApplicationSupportDirectory,
+        _httpClientFactory = httpClientFactory ?? http.Client.new;
+
   static const manualSource = 'manual';
   static const _maxConcurrent = 2;
+
+  final Future<Directory> Function() _directoryProvider;
+  final http.Client Function() _httpClientFactory;
 
   SubsonicClient? _client;
   Directory? _dir;
@@ -122,7 +135,7 @@ class DownloadController extends ChangeNotifier {
   Future<Directory> _ensureDir() async {
     final existing = _dir;
     if (existing != null) return existing;
-    final base = await getApplicationSupportDirectory();
+    final base = await _directoryProvider();
     final dir = Directory('${base.path}/downloads');
     await dir.create(recursive: true);
     return _dir = dir;
@@ -156,12 +169,31 @@ class DownloadController extends ChangeNotifier {
     }
   }
 
-  Future<void> _save() async {
+  /// Tail of the chain of index writes; see [_save].
+  Future<void> _saving = Future.value();
+
+  /// Persists the index. Writes run one at a time, because two downloads
+  /// finishing together would otherwise write the same file concurrently and
+  /// interleave into invalid JSON (which [_load] then discards, forgetting
+  /// every download). The contents are read when each write runs, so the last
+  /// one always reflects the latest state.
+  Future<void> _save() {
+    final next = _saving.then((_) => _writeIndex());
+    _saving = next.then((_) {}, onError: (Object _) {});
+    return next;
+  }
+
+  /// Writes to a temp file and renames it over the index, so a crash mid-write
+  /// can't leave a truncated index behind.
+  Future<void> _writeIndex() async {
     final dir = await _ensureDir();
-    await _indexFile(dir).writeAsString(jsonEncode({
+    final file = _indexFile(dir);
+    final temp = File('${file.path}.tmp');
+    await temp.writeAsString(jsonEncode({
       'songs': [for (final d in _done.values) d.toJson()],
       'collections': [for (final c in _collections.values) c.toJson()],
     }));
+    await temp.rename(file.path);
   }
 
   // --- Downloading ----------------------------------------------------------
@@ -247,7 +279,7 @@ class DownloadController extends ChangeNotifier {
   /// One attempt at downloading [song] into [part]. Returns the byte count.
   Future<int> _attemptDownload(
       SubsonicClient client, Song song, File part) async {
-    final httpClient = http.Client();
+    final httpClient = _httpClientFactory();
     try {
       _progress[song.id] = -1;
       final response = await httpClient

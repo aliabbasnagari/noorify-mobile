@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../settings/settings_models.dart';
@@ -6,9 +7,8 @@ import '../../state/download_controller.dart';
 import '../../state/session_controller.dart';
 import '../../state/settings_controller.dart';
 import '../../state/sync_controller.dart';
-import 'downloads_page.dart';
-import 'equalizer_page.dart';
-import 'home_layout_page.dart';
+import '../routing/app_routes.dart';
+import '../routing/navigation.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -130,9 +130,7 @@ class SettingsPage extends StatelessWidget {
             title: const Text('Equalizer'),
             subtitle: Text(p.eqEnabled ? 'On' : 'Off'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const EqualizerPage()),
-            ),
+            onTap: () => context.openEqualizer(),
           ),
           const _Section('Library'),
           ListTile(
@@ -154,17 +152,13 @@ class SettingsPage extends StatelessWidget {
               '${downloads.downloaded.length} songs • ${_formatBytes(downloads.usedBytes)}',
             ),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const DownloadsPage()),
-            ),
+            onTap: () => context.openDownloads(),
           ),
           ListTile(
             leading: const Icon(Icons.dashboard_customize_outlined),
             title: const Text('Home layout'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const HomeLayoutPage()),
-            ),
+            onTap: () => context.openHomeLayout(),
           ),
           const _Section('Account'),
           ListTile(
@@ -182,7 +176,7 @@ class SettingsPage extends StatelessWidget {
   /// Signing out wipes this account's local data: downloaded files and the
   /// synced song cache. Playback stops when the session ends.
   static Future<void> _confirmSignOut(BuildContext context) async {
-    final navigator = Navigator.of(context);
+    final router = GoRouter.of(context);
     final session = context.read<SessionController>();
     final downloads = context.read<DownloadController>();
     final sync = context.read<SyncController>();
@@ -209,7 +203,9 @@ class SettingsPage extends StatelessWidget {
     await downloads.clearAll();
     await sync.clear();
     await session.logout();
-    navigator.popUntil((r) => r.isFirst);
+    // Signing out re-runs the router's redirect, which would otherwise send
+    // the next sign-in back to this settings page.
+    router.go(AppRoutes.login);
   }
 
   static String _syncSummary(SyncController sync) {

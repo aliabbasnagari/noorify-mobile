@@ -1,8 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-    <!-- The Flutter tool needs INTERNET in debug for hot reload. Cleartext is
-         allowed in debug only so a LAN server over plain http works while
-         developing; release builds keep the platform default (https only). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The Flutter tool needs INTERNET in debug for hot reload. Cleartext
+         http is allowed for all build types in the main manifest. -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <application android:usesCleartextTraffic="true" tools:targetApi="m"/>
 </manifest>

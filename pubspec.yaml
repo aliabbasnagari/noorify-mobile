@@ -39,6 +39,10 @@ dependencies:
   media_kit_libs_linux: ^1.2.1
   audio_service_mpris: ^0.2.1
   audio_service_win: ^0.0.3
+  # Pinned to 12.0.1: 13.x pulls in permission_handler_android 14, which needs
+  # compileSdk 37, newer than Flutter's default (36) and than most CI images.
+  permission_handler: 12.0.1
+  go_router: ^18.1.2
 
 dev_dependencies:
   flutter_test:

@@ -5,7 +5,7 @@ import '../../models/models.dart';
 import '../../state/session_controller.dart';
 import '../util.dart';
 import '../widgets/cover_art.dart';
-import 'artist_page.dart';
+import '../routing/navigation.dart';
 
 class ArtistListPage extends StatefulWidget {
   const ArtistListPage({super.key});
@@ -55,10 +55,7 @@ class _ArtistListPageState extends State<ArtistListPage> {
                 ),
                 title: Text(a.name),
                 subtitle: Text('${a.albumCount} albums'),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                      builder: (_) => ArtistPage(artistId: a.id)),
-                ),
+                onTap: () => context.openArtist(a.id),
               );
             },
           );

@@ -9,7 +9,7 @@ import '../../state/smart_playlist_store.dart';
 import '../../state/sync_controller.dart';
 import '../util.dart';
 import '../widgets/song_tile.dart';
-import 'smart_filter_editor.dart';
+import '../routing/navigation.dart';
 
 /// Evaluates a smart playlist against the synced library and lists the result.
 class SmartPlaylistPage extends StatelessWidget {
@@ -41,9 +41,7 @@ class SmartPlaylistPage extends StatelessWidget {
           IconButton(
             tooltip: 'Edit rules',
             icon: const Icon(Icons.tune),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => SmartFilterEditor(existing: playlist)),
-            ),
+            onPressed: () => context.editSmartPlaylist(playlist.id),
           ),
         ],
       ),

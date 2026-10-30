@@ -5,7 +5,7 @@ import '../../models/models.dart';
 import '../../state/download_controller.dart';
 import '../../state/session_controller.dart';
 import '../../subsonic/subsonic_client.dart';
-import '../pages/album_page.dart';
+import '../routing/navigation.dart';
 import '../util.dart';
 import 'cover_art.dart';
 
@@ -22,9 +22,7 @@ class AlbumCard extends StatelessWidget {
       width: width,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => AlbumPage(albumId: album.id)),
-        ),
+        onTap: () => context.openAlbum(album.id),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

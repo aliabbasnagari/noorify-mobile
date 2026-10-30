@@ -6,6 +6,7 @@ import 'package:rxdart/rxdart.dart';
 import '../../models/models.dart';
 import '../../state/player_controller.dart';
 import '../../state/star_controller.dart';
+import '../routing/navigation.dart';
 import '../util.dart';
 import '../widgets/art_hero_background.dart';
 import '../widgets/cover_art.dart';
@@ -24,9 +25,7 @@ class NowPlayingPage extends StatelessWidget {
     if (song == null) {
       // Queue was cleared (e.g. signed out) while this page was open.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted && Navigator.of(context).canPop()) {
-          Navigator.of(context).pop();
-        }
+        if (context.mounted) context.closeOrHome();
       });
       return const Scaffold();
     }
@@ -39,7 +38,7 @@ class NowPlayingPage extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.keyboard_arrow_down),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.closeOrHome(),
         ),
         title: Text(song.album ?? 'Now playing',
             maxLines: 1, overflow: TextOverflow.ellipsis),

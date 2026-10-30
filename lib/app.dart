@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'settings/settings_models.dart';
 import 'state/session_controller.dart';
 import 'state/settings_controller.dart';
-import 'ui/home_shell.dart';
-import 'ui/login_page.dart';
+import 'ui/routing/app_router.dart';
 
 /// Spotify's own brand green; identical in both themes.
 const _spotifyGreen = Color(0xFF1DB954);
@@ -57,32 +57,35 @@ ThemeMode _toThemeMode(AppThemeMode mode) => switch (mode) {
       AppThemeMode.dark => ThemeMode.dark,
     };
 
-class NoorifyApp extends StatelessWidget {
+class NoorifyApp extends StatefulWidget {
   const NoorifyApp({super.key});
+
+  @override
+  State<NoorifyApp> createState() => _NoorifyAppState();
+}
+
+class _NoorifyAppState extends State<NoorifyApp> {
+  /// Built once: it owns the navigation state (current tab and each tab's page
+  /// stack), which must not be lost when the theme or session changes.
+  late final GoRouter _router =
+      buildAppRouter(session: context.read<SessionController>());
+
+  @override
+  void dispose() {
+    _router.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final themeMode = context.watch<SettingsController>().themeMode;
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Noorify',
       debugShowCheckedModeBanner: false,
       themeMode: _toThemeMode(themeMode),
       theme: _themeFor(_lightScheme),
       darkTheme: _themeFor(_darkScheme),
-      home: const _Root(),
+      routerConfig: _router,
     );
-  }
-}
-
-class _Root extends StatelessWidget {
-  const _Root();
-
-  @override
-  Widget build(BuildContext context) {
-    final session = context.watch<SessionController>();
-    if (session.isRestoring) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-    return session.isLoggedIn ? const HomeShell() : const LoginPage();
   }
 }

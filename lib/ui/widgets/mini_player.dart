@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../state/player_controller.dart';
-import '../pages/now_playing_page.dart';
+import '../routing/navigation.dart';
 import 'cover_art.dart';
 
 /// Compact now-playing bar shown above the navigation bar, matching
@@ -47,12 +47,7 @@ class _MiniPlayerState extends State<MiniPlayer>
     return Material(
       color: scheme.surfaceContainer,
       child: InkWell(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            fullscreenDialog: true,
-            builder: (_) => const NowPlayingPage(),
-          ),
-        ),
+        onTap: () => context.openNowPlaying(),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

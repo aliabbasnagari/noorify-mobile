@@ -9,7 +9,7 @@ import '../../state/download_controller.dart';
 import '../widgets/cover_art.dart';
 import '../widgets/offline_switch.dart';
 import '../widgets/song_tile.dart';
-import 'artist_page.dart';
+import '../routing/navigation.dart';
 
 class AlbumPage extends StatefulWidget {
   const AlbumPage({super.key, required this.albumId});
@@ -84,11 +84,7 @@ class _AlbumBody extends StatelessWidget {
                       InkWell(
                         onTap: album.artistId == null
                             ? null
-                            : () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => ArtistPage(artistId: album.artistId!),
-                                  ),
-                                ),
+                            : () => context.openArtist(album.artistId!),
                         child: Text(
                           album.artist!,
                           style: textTheme.titleMedium?.copyWith(

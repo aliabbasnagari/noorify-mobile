@@ -2,17 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/models.dart';
+import '../../state/playlists_revision.dart';
 import '../../state/session_controller.dart';
+import '../routing/navigation.dart';
 import '../util.dart';
 import '../widgets/cover_art.dart';
 import '../widgets/song_tile.dart' show promptForText;
-import 'album_list_page.dart';
-import 'artist_list_page.dart';
-import 'downloads_page.dart';
-import 'favorites_page.dart';
-import 'playlist_page.dart';
-import 'smart_playlists_view.dart';
-import 'song_list_page.dart';
 
 /// "Your Library" hub: a grid of section tiles (Albums, Artists, Songs,
 /// Downloads, Smart Playlists) followed by the user's server playlists.
@@ -29,6 +24,7 @@ class LibraryTab extends StatefulWidget {
 class _LibraryTabState extends State<LibraryTab>
     with AutomaticKeepAliveClientMixin {
   late Future<List<Playlist>> _playlistsFuture;
+  late final PlaylistsRevision _revision;
 
   @override
   bool get wantKeepAlive => true;
@@ -37,6 +33,19 @@ class _LibraryTabState extends State<LibraryTab>
   void initState() {
     super.initState();
     _loadPlaylists();
+    // Playlists can also be created from the Create menu or "add to a new
+    // playlist"; reload so this list never shows a stale set.
+    _revision = context.read<PlaylistsRevision>()..addListener(_onRevision);
+  }
+
+  @override
+  void dispose() {
+    _revision.removeListener(_onRevision);
+    super.dispose();
+  }
+
+  void _onRevision() {
+    if (mounted) setState(_loadPlaylists);
   }
 
   void _loadPlaylists() => _playlistsFuture =
@@ -53,9 +62,6 @@ class _LibraryTabState extends State<LibraryTab>
       if (mounted) showError(context, e);
     }
   }
-
-  void _push(Widget page) =>
-      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
 
   @override
   Widget build(BuildContext context) {
@@ -77,32 +83,32 @@ class _LibraryTabState extends State<LibraryTab>
                 _LibraryTile(
                   icon: Icons.album_outlined,
                   label: 'Albums',
-                  onTap: () => _push(const AlbumListPage()),
+                  onTap: () => context.openAlbums(),
                 ),
                 _LibraryTile(
                   icon: Icons.person_outline,
                   label: 'Artists',
-                  onTap: () => _push(const ArtistListPage()),
+                  onTap: () => context.openArtists(),
                 ),
                 _LibraryTile(
                   icon: Icons.music_note_outlined,
                   label: 'Songs',
-                  onTap: () => _push(const SongListPage()),
+                  onTap: () => context.openSongs(),
                 ),
                 _LibraryTile(
                   icon: Icons.favorite_border,
                   label: 'Favorites',
-                  onTap: () => _push(const FavoritesPage()),
+                  onTap: () => context.openFavorites(),
                 ),
                 _LibraryTile(
                   icon: Icons.download_for_offline_outlined,
                   label: 'Downloads',
-                  onTap: () => _push(const DownloadsPage()),
+                  onTap: () => context.openDownloads(),
                 ),
                 _LibraryTile(
                   icon: Icons.auto_awesome_outlined,
                   label: 'Smart Playlists',
-                  onTap: () => _push(const SmartPlaylistsView()),
+                  onTap: () => context.openSmartPlaylists(),
                 ),
               ],
             ),
@@ -159,12 +165,7 @@ class _LibraryTabState extends State<LibraryTab>
                       subtitle: Text(
                           '${p.songCount} songs • ${formatTotal(p.duration)}'),
                       onTap: () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                PlaylistPage(playlistId: p.id, name: p.name),
-                          ),
-                        );
+                        await context.openPlaylist(p.id, p.name);
                         if (mounted) setState(_loadPlaylists);
                       },
                     ),

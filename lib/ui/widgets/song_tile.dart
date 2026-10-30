@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/models.dart';
 import '../../state/download_controller.dart';
 import '../../state/player_controller.dart';
+import '../../state/playlists_revision.dart';
 import '../../state/session_controller.dart';
 import '../../state/star_controller.dart';
 import '../util.dart';
@@ -177,6 +178,7 @@ Future<void> showAddToPlaylistSheet(
     BuildContext context, List<Song> songs) async {
   final client = context.read<SessionController>().client!;
   final messenger = ScaffoldMessenger.of(context);
+  final revision = context.read<PlaylistsRevision>();
 
   Future<void> run(Future<void> Function() op, String ok) async {
     try {
@@ -228,7 +230,10 @@ Future<void> showAddToPlaylistSheet(
                       await promptForText(context, 'New playlist', 'Name');
                   if (name != null) {
                     await run(
-                      () => client.createPlaylist(name, songIds: ids),
+                      () async {
+                        await client.createPlaylist(name, songIds: ids);
+                        revision.bump();
+                      },
                       'Created "$name"',
                     );
                   }

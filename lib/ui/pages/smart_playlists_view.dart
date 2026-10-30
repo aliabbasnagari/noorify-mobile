@@ -4,8 +4,7 @@ import 'package:provider/provider.dart';
 import '../../smart/smart_filter.dart';
 import '../../state/smart_playlist_store.dart';
 import '../../state/sync_controller.dart';
-import 'smart_filter_editor.dart';
-import 'smart_playlist_page.dart';
+import '../routing/navigation.dart';
 
 /// "Smart" tab: rule-based playlists evaluated against the synced library.
 class SmartPlaylistsView extends StatelessWidget {
@@ -20,9 +19,7 @@ class SmartPlaylistsView extends StatelessWidget {
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         tooltip: 'New smart playlist',
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const SmartFilterEditor()),
-        ),
+        onPressed: () => context.openNewSmartPlaylist(),
         child: const Icon(Icons.add),
       ),
       body: ListView(
@@ -81,15 +78,11 @@ class _Tile extends StatelessWidget {
       leading: const CircleAvatar(child: Icon(Icons.auto_awesome)),
       title: Text(playlist.title),
       subtitle: Text('$rules ${rules == 1 ? 'rule' : 'rules'}'),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => SmartPlaylistPage(playlistId: playlist.id)),
-      ),
+      onTap: () => context.openSmartPlaylist(playlist.id),
       trailing: PopupMenuButton<String>(
         onSelected: (v) {
           if (v == 'edit') {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => SmartFilterEditor(existing: playlist)),
-            );
+            context.editSmartPlaylist(playlist.id);
           } else if (v == 'delete') {
             context.read<SmartPlaylistStore>().remove(playlist.id);
           }

@@ -9,6 +9,7 @@ import 'app.dart';
 import 'data/local/app_database.dart';
 import 'state/download_controller.dart';
 import 'state/player_controller.dart';
+import 'state/playlists_revision.dart';
 import 'state/session_controller.dart';
 import 'state/settings_controller.dart';
 import 'state/smart_playlist_store.dart';
@@ -40,6 +41,7 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => SessionController()..restore()),
         ChangeNotifierProvider(create: (_) => SettingsController(prefs)),
+        ChangeNotifierProvider(create: (_) => PlaylistsRevision()),
         ChangeNotifierProvider(create: (_) => SmartPlaylistStore(prefs)),
         Provider(create: (_) => AppDatabase()),
         ChangeNotifierProxyProvider<SessionController, SyncController>(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../smart/smart_filter.dart';
@@ -87,7 +88,7 @@ class _SmartFilterEditorState extends State<SmartFilterEditor> {
       return;
     }
     final store = context.read<SmartPlaylistStore>();
-    final navigator = Navigator.of(context);
+    final router = GoRouter.of(context);
     final filter = _buildFilter();
     final existing = widget.existing;
     await store.upsert(
@@ -95,7 +96,7 @@ class _SmartFilterEditorState extends State<SmartFilterEditor> {
           ? SmartPlaylist.create(title, filter)
           : existing.copyWith(title: title, filter: filter),
     );
-    navigator.pop();
+    router.pop();
   }
 
   @override

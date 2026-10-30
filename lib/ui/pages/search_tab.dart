@@ -8,8 +8,7 @@ import '../../state/player_controller.dart';
 import '../../state/session_controller.dart';
 import '../widgets/cover_art.dart';
 import '../widgets/song_tile.dart';
-import 'album_page.dart';
-import 'artist_page.dart';
+import '../routing/navigation.dart';
 
 class SearchTab extends StatefulWidget {
   const SearchTab({super.key});
@@ -116,9 +115,7 @@ class _SearchTabState extends State<SearchTab> {
               child: CoverArt(coverArt: a.coverArt, size: 44, requestSize: 100, radius: 22),
             ),
             title: Text(a.name),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => ArtistPage(artistId: a.id)),
-            ),
+            onTap: () => context.openArtist(a.id),
           ),
         if (results.albums.isNotEmpty) const _Header('Albums'),
         for (final a in results.albums)
@@ -126,9 +123,7 @@ class _SearchTabState extends State<SearchTab> {
             leading: CoverArt(coverArt: a.coverArt, size: 48, requestSize: 100, radius: 6),
             title: Text(a.name),
             subtitle: Text(a.artist ?? ''),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => AlbumPage(albumId: a.id)),
-            ),
+            onTap: () => context.openAlbum(a.id),
           ),
         if (results.songs.isNotEmpty) const _Header('Songs'),
         for (var i = 0; i < results.songs.length; i++)

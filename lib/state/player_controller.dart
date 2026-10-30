@@ -14,6 +14,12 @@ import '../subsonic/subsonic_client.dart';
 import 'download_controller.dart';
 import 'settings_controller.dart';
 
+/// Creates a just_audio player; see [PlayerController.new].
+typedef PlayerFactory = AudioPlayer Function({AudioPipeline? audioPipeline});
+
+AudioPlayer _defaultPlayerFactory({AudioPipeline? audioPipeline}) =>
+    AudioPlayer(audioPipeline: audioPipeline);
+
 /// Playback queue + transport, backed by just_audio. Also an [AudioHandler]
 /// (audio_service) so the OS media notification, lock screen, headset
 /// buttons and Android Auto drive the same queue/transport as the in-app UI.
@@ -22,8 +28,11 @@ import 'settings_controller.dart';
 /// and the Android equalizer. Offline copies are preferred over streaming.
 class PlayerController extends BaseAudioHandler
     with SeekHandler, ChangeNotifier {
-  PlayerController() {
-    _player = AudioPlayer(
+  /// [playerFactory] builds both the main player and the lazily created
+  /// crossfade overlap player; tests pass one that returns fakes.
+  PlayerController({PlayerFactory? playerFactory})
+      : _playerFactory = playerFactory ?? _defaultPlayerFactory {
+    _player = _playerFactory(
       audioPipeline: _isAndroid
           ? AudioPipeline(androidAudioEffects: [_equalizer, _loudness])
           : null,
@@ -55,6 +64,7 @@ class PlayerController extends BaseAudioHandler
   static bool get _isAndroid =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
+  final PlayerFactory _playerFactory;
   late final AudioPlayer _player;
   final AndroidEqualizer _equalizer = AndroidEqualizer();
   final AndroidLoudnessEnhancer _loudness = AndroidLoudnessEnhancer();
@@ -97,6 +107,9 @@ class PlayerController extends BaseAudioHandler
   PlaybackSettings get _playback =>
       _settings?.playback ?? const PlaybackSettings();
 
+  /// The listener's own volume multiplier (0 while muted).
+  double get _userGain => _playback.muted ? 0 : _playback.volume;
+
   // --- Wiring ---------------------------------------------------------------
 
   /// Called whenever the active server session changes.
@@ -117,7 +130,12 @@ class PlayerController extends BaseAudioHandler
 
   void _onSettingsChanged() {
     // Deferred: this can be reached from a provider update during build.
-    scheduleMicrotask(() => unawaited(_applySettings()));
+    scheduleMicrotask(() {
+      unawaited(_applySettings());
+      // The volume getters read the settings, so let listeners (a volume
+      // slider) see the change.
+      notifyListeners();
+    });
   }
 
   // --- State ----------------------------------------------------------------
@@ -135,6 +153,21 @@ class PlayerController extends BaseAudioHandler
       _player.processingState == ProcessingState.buffering;
   bool get shuffleEnabled => _player.shuffleModeEnabled;
   LoopMode get loopMode => _player.loopMode;
+
+  /// The listener's volume, 0..1, kept even while muted.
+  double get userVolume => _playback.volume;
+  bool get isMuted => _playback.muted;
+
+  /// Sets the listener's volume. Moving it from silence also unmutes.
+  Future<void> setUserVolume(double volume) async {
+    await _settings?.updatePlayback(
+      (c) => c.copyWith(volume: volume.clamp(0.0, 1.0), muted: false),
+    );
+  }
+
+  Future<void> toggleMute() async {
+    await _settings?.updatePlayback((c) => c.copyWith(muted: !c.muted));
+  }
 
   Stream<Duration> get positionStream => _player.positionStream;
   Stream<Duration?> get durationStream => _player.durationStream;
@@ -350,8 +383,9 @@ class PlayerController extends BaseAudioHandler
     }
   }
 
-  /// Volume = ReplayGain (attenuation only) x fade factor. Positive ReplayGain
-  /// is realised with the loudness enhancer because volume tops out at 1.0.
+  /// Volume = ReplayGain (attenuation only) x fade factor x the listener's own
+  /// volume. Positive ReplayGain is realised with the loudness enhancer
+  /// because volume tops out at 1.0.
   Future<void> _applyVolume() async {
     final song = current;
     final p = _playback;
@@ -366,7 +400,7 @@ class PlayerController extends BaseAudioHandler
       if (boost > 0) await _loudness.setTargetGain(boost);
     }
 
-    final volume = (dbToVolume(db) * _fade).clamp(0.0, 1.0);
+    final volume = (dbToVolume(db) * _fade * _userGain).clamp(0.0, 1.0);
     if ((volume - _lastVolume).abs() > 0.005) {
       _lastVolume = volume;
       await _player.setVolume(volume);
@@ -443,7 +477,7 @@ class PlayerController extends BaseAudioHandler
     _crossfading = true;
     _crossfadeTotalMs = totalMs;
     _crossfadeExpectedSong = next;
-    final overlap = _overlapPlayer ??= AudioPlayer();
+    final overlap = _overlapPlayer ??= _playerFactory();
     try {
       await overlap.setVolume(0);
       await overlap.setAudioSource(_toSource(next));
@@ -475,7 +509,8 @@ class PlayerController extends BaseAudioHandler
         ? 0.0
         : replayGainDb(
             next.replayGain, _playback.replayGain, _playback.preAmpDb);
-    unawaited(overlap.setVolume((t * dbToVolume(nextDb)).clamp(0.0, 1.0)));
+    unawaited(overlap
+        .setVolume((t * dbToVolume(nextDb) * _userGain).clamp(0.0, 1.0)));
   }
 
   /// Called once the main player naturally advances past the crossfaded

@@ -20,6 +20,8 @@ class PlaybackSettings {
     this.skipSilence = false,
     this.eqEnabled = false,
     this.eqGains = const [],
+    this.volume = 1,
+    this.muted = false,
   });
 
   final ReplayGainMode replayGain;
@@ -37,6 +39,14 @@ class PlaybackSettings {
   /// Per-band gain in dB for the device's equalizer bands.
   final List<double> eqGains;
 
+  /// The listener's own volume, 0..1, applied on top of ReplayGain and fades.
+  /// Phones leave this at 1 and use the hardware keys; desktop and web, which
+  /// have no per-app hardware control, expose it as a slider.
+  final double volume;
+
+  /// Silences playback without losing [volume], so unmuting restores it.
+  final bool muted;
+
   PlaybackSettings copyWith({
     ReplayGainMode? replayGain,
     double? preAmpDb,
@@ -46,6 +56,8 @@ class PlaybackSettings {
     bool? skipSilence,
     bool? eqEnabled,
     List<double>? eqGains,
+    double? volume,
+    bool? muted,
   }) =>
       PlaybackSettings(
         replayGain: replayGain ?? this.replayGain,
@@ -56,6 +68,8 @@ class PlaybackSettings {
         skipSilence: skipSilence ?? this.skipSilence,
         eqEnabled: eqEnabled ?? this.eqEnabled,
         eqGains: eqGains ?? this.eqGains,
+        volume: volume ?? this.volume,
+        muted: muted ?? this.muted,
       );
 
   Map<String, dynamic> toJson() => {
@@ -67,6 +81,8 @@ class PlaybackSettings {
         'skipSilence': skipSilence,
         'eqEnabled': eqEnabled,
         'eqGains': eqGains,
+        'volume': volume,
+        'muted': muted,
       };
 
   factory PlaybackSettings.fromJson(Map<String, dynamic> j) => PlaybackSettings(
@@ -84,6 +100,8 @@ class PlaybackSettings {
           for (final g in (j['eqGains'] as List? ?? const []))
             (g as num).toDouble(),
         ],
+        volume: ((j['volume'] as num?)?.toDouble() ?? 1).clamp(0.0, 1.0),
+        muted: j['muted'] as bool? ?? false,
       );
 }
 

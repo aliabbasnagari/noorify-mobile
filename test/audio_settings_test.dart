@@ -93,9 +93,13 @@ void main() {
         skipSilence: true,
         eqEnabled: true,
         eqGains: [1, -2, 0, 3, 0],
+        volume: 0.4,
+        muted: true,
       );
       final copy = PlaybackSettings.fromJson(s.toJson());
       expect(copy.toJson(), s.toJson());
+      expect(copy.volume, 0.4);
+      expect(copy.muted, isTrue);
     });
 
     test('missing or invalid values use safe defaults', () {
@@ -104,6 +108,13 @@ void main() {
       expect(s.fadeInMs, 0);
       expect(s.crossfadeMs, 0);
       expect(s.eqGains, isEmpty);
+      expect(s.volume, 1);
+      expect(s.muted, isFalse);
+    });
+
+    test('an out-of-range stored volume is clamped', () {
+      expect(PlaybackSettings.fromJson({'volume': 7}).volume, 1);
+      expect(PlaybackSettings.fromJson({'volume': -3}).volume, 0);
     });
 
     test('home layout keeps stored order and adds new rows', () {

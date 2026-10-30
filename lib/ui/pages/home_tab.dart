@@ -5,7 +5,7 @@ import '../../settings/settings_models.dart';
 import '../../state/settings_controller.dart';
 import '../../subsonic/subsonic_client.dart';
 import '../widgets/album_widgets.dart';
-import 'settings_page.dart';
+import '../routing/navigation.dart';
 
 const homeRowTypes = <String, AlbumListType>{
   'recent': AlbumListType.recent,
@@ -28,9 +28,7 @@ class HomeTab extends StatelessWidget {
           IconButton(
             tooltip: 'Settings',
             icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
-            ),
+            onPressed: () => context.openSettings(),
           ),
         ],
       ),

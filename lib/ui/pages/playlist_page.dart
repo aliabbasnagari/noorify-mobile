@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/models.dart';
@@ -33,7 +34,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
   Future<void> _delete() async {
     final client = context.read<SessionController>().client!;
-    final navigator = Navigator.of(context);
+    final router = GoRouter.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -47,7 +48,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
     if (confirmed != true) return;
     try {
       await client.deletePlaylist(widget.playlistId);
-      navigator.pop();
+      router.pop();
     } on Object catch (e) {
       if (mounted) showError(context, e);
     }

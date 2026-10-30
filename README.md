@@ -64,7 +64,7 @@ If any stage fails, nothing is published. Tags containing a hyphen (e.g. `v0.2.0
 
 ### Known limitations
 
-- **Android** release builds currently use the debug signing config (`android/app/build.gradle.kts`), so the APK installs but can't be published to the Play Store. Add a release keystore before distributing publicly.
+- **Android** release builds are signed with your upload keystore when one is configured (see [Android release signing](#android-release-signing)); otherwise they fall back to the debug key, which installs fine but can't be published to the Play Store.
 - **iOS** has no signing certificates configured in CI, so the IPA is unsigned. Distributing a signed build needs an Apple Developer certificate and provisioning profile added as repository secrets.
 - **macOS** builds are unsigned and not notarized.
 - **Linux** playback uses libmpv (through `just_audio_media_kit`), which is not bundled in the AppImage or tarball. Install it first (`sudo apt install libmpv2`, or `libmpv-dev` to build). Windows bundles its own mpv library.
@@ -74,10 +74,48 @@ If any stage fails, nothing is published. Tags containing a hyphen (e.g. `v0.2.0
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `flutter analyze`, `flutter test` and a web build on every pull request and on pushes to `master`. The release pipeline also runs `flutter analyze` before building.
 
+### Android release signing
+
+The release build signs with `android/key.properties` when that file exists, and falls back to the debug key when it doesn't. The file and any `*.jks` / `*.keystore` are git-ignored.
+
+1. **Create an upload keystore** (once). `keytool` ships with Android Studio's JDK (`<Android Studio>\jbr\bin\keytool.exe`):
+
+   ```powershell
+   keytool -genkeypair -v -keystore $HOME\noorify-upload-keystore.jks `
+     -storetype PKCS12 -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+   ```
+
+   Pick a strong password. For a PKCS12 keystore the key password is the store password, so use the same value for both below. **Back up the file and the password** somewhere safe (a password manager); losing them means you can't update the app.
+
+2. **Local release builds.** Copy the keystore to `android/app/upload-keystore.jks` and create `android/key.properties`:
+
+   ```properties
+   storeFile=upload-keystore.jks
+   storePassword=<password>
+   keyAlias=upload
+   keyPassword=<password>
+   ```
+
+   `storeFile` is relative to `android/app`; an absolute path also works. Then `flutter build apk --release` or `flutter build appbundle --release`.
+
+3. **CI release builds.** Add four repository secrets (Settings → Secrets and variables → Actions):
+
+   | Secret | Value |
+   |---|---|
+   | `ANDROID_KEYSTORE_BASE64` | the keystore, base64-encoded: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME\noorify-upload-keystore.jks")) \| Set-Clipboard` |
+   | `ANDROID_KEYSTORE_PASSWORD` | the store password |
+   | `ANDROID_KEY_ALIAS` | `upload` |
+   | `ANDROID_KEY_PASSWORD` | the key password (same as the store password for PKCS12) |
+
+   With the secrets present, the tag pipeline signs both `noorify-<tag>-android.apk` and `noorify-<tag>-android.aab`. Without them it still builds, with a warning, using the debug key.
+
+4. **Play Store.** Upload the `.aab`. Enrol in Play App Signing when asked: Google then holds the app signing key and your keystore is only the upload key, which Play support can reset if you ever lose it.
+
 ### Building locally
 
 ```sh
-flutter build apk --release                  # Android
+flutter build apk --release                  # Android (APK)
+flutter build appbundle --release            # Android (App Bundle for the Play Store)
 flutter build ios --release --no-codesign    # iOS (macOS host)
 flutter build macos --release                # macOS (macOS host)
 flutter build windows --release              # Windows (Windows host)

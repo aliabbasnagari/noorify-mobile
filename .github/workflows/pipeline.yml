@@ -64,19 +64,51 @@ jobs:
       - name: Generate launcher icons
         run: dart run flutter_launcher_icons
 
+      # Signs with the upload keystore when the four ANDROID_* secrets exist
+      # (see README "Android release signing"); otherwise the build falls back
+      # to the debug key and is not publishable to the Play Store.
+      - name: Configure release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::warning::No Android signing secrets set; the release is signed with the debug key."
+            exit 0
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
+          {
+            echo "storeFile=upload-keystore.jks"
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+          } > android/key.properties
+
       - name: Build APK
         run: |
           flutter build apk --release \
             --build-name="${GITHUB_REF_NAME#v}" \
             --build-number="${{ github.run_number }}"
 
-      - name: Rename artifact
-        run: cp build/app/outputs/flutter-apk/app-release.apk "${APP_NAME}-${GITHUB_REF_NAME}-android.apk"
+      - name: Build App Bundle
+        run: |
+          flutter build appbundle --release \
+            --build-name="${GITHUB_REF_NAME#v}" \
+            --build-number="${{ github.run_number }}"
+
+      - name: Rename artifacts
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk "${APP_NAME}-${GITHUB_REF_NAME}-android.apk"
+          cp build/app/outputs/bundle/release/app-release.aab "${APP_NAME}-${GITHUB_REF_NAME}-android.aab"
 
       - uses: actions/upload-artifact@v4
         with:
           name: android
-          path: ${{ env.APP_NAME }}-*-android.apk
+          path: |
+            ${{ env.APP_NAME }}-*-android.apk
+            ${{ env.APP_NAME }}-*-android.aab
           if-no-files-found: error
 
   # ---------------------------------------------------------------- ios

@@ -7,10 +7,14 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
+    <!-- usesCleartextTraffic: many self-hosted Subsonic servers are reached over
+         plain http on a LAN, so http:// URLs are allowed in release builds too.
+         Self-signed or private-CA https certificates are still rejected. -->
     <application
         android:label="Noorify"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
